@@ -2,7 +2,7 @@
 // SERVICE WORKER - OFFLINE MODE
 // ============================================
 
-const CACHE_NAME = 'bartrak-v1';
+const CACHE_NAME = 'farmerschoice-v1';
 const OFFLINE_URL = 'pos.html';
 
 // Files to cache for offline use
@@ -99,7 +99,7 @@ self.addEventListener('push', (event) => {
   console.log('📨 Push notification received:', event);
   
   let data = {
-    title: 'BarTrak POS',
+    title: 'FarmersChoice Agrovet',
     body: 'New activity!',
     icon: 'icon-192.png',
     badge: 'icon-192.png'
@@ -153,4 +153,3 @@ self.addEventListener('notificationclick', (event) => {
     clients.openWindow(url)
   );
 });
-
