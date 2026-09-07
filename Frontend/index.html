@@ -1,0 +1,2813 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FarmersChoice Agrovet — Kenya</title>
+  <link rel="icon" type="image/png" href="OIP.webp" />
+  <!-- PWA Meta Tags -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#2e7d32" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- Register Service Worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+          .then(reg => console.log('Service Worker registered:', reg))
+          .catch(err => console.error('Service Worker registration failed:', err));
+      });
+    }
+  </script>
+  <style>
+    /* ========================================== */
+    /* IMPORT FONTS                               */
+    /* ========================================== */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+    /* ========================================== */
+    /* CSS VARIABLES — DARK (default) & LIGHT     */
+    /* ========================================== */
+    :root {
+      --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+      --font-base: 16px;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      --transition: all 0.2s ease;
+    }
+
+    [data-theme="dark"] {
+      --bg-primary: #0d0f14;
+      --bg-secondary: #161a22;
+      --bg-card: #1e2330;
+      --bg-surface: #1a1f2b;
+      --border-color: #2a3045;
+      --border-light: #3a4055;
+      --accent: #2e7d32;
+      --accent-hover: #388e3c;
+      --accent-dark: #1b5e20;
+      --text-primary: #e8ecf4;
+      --text-secondary: #a0aab8;
+      --text-muted: #7a869a;
+      --red: #e74c3c;
+      --green: #2ecc71;
+      --yellow: #f39c12;
+      --blue: #3498db;
+      --purple: #9b59b6;
+      --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      --input-bg: var(--bg-primary);
+      --modal-overlay: rgba(0, 0, 0, 0.65);
+      --toast-bg: var(--bg-card);
+    }
+
+    [data-theme="light"] {
+      --bg-primary: #f0f2f8;
+      --bg-secondary: #e4e8ef;
+      --bg-card: #ffffff;
+      --bg-surface: #f4f6fb;
+      --border-color: #c8cdd9;
+      --border-light: #b0b8c8;
+      --accent: #2e7d32;
+      --accent-hover: #388e3c;
+      --accent-dark: #1b5e20;
+      --text-primary: #1a1f2e;
+      --text-secondary: #3a4055;
+      --text-muted: #6a7288;
+      --red: #d63031;
+      --green: #00b894;
+      --yellow: #e17055;
+      --blue: #0984e3;
+      --purple: #6c5ce7;
+      --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+      --input-bg: #ffffff;
+      --modal-overlay: rgba(0, 0, 0, 0.35);
+      --toast-bg: #ffffff;
+    }
+
+    /* ========================================== */
+    /* RESET & BASE                               */
+    /* ========================================== */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    html {
+      scroll-behavior: smooth;
+      font-size: var(--font-base);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    body {
+      font-family: var(--font-family);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+      font-size: 1rem;
+      line-height: 1.6;
+      transition: background 0.3s, color 0.3s, border-color 0.3s;
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-primary); }
+    ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+    /* ===== LOGIN ===== */
+    #loginScreen {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+      background: var(--bg-primary);
+      position: relative;
+    }
+    .login-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      padding: 40px 36px 32px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: var(--card-shadow);
+      transition: background 0.3s, border-color 0.3s;
+    }
+    .login-brand { text-align: center; margin-bottom: 28px; }
+    .login-brand .logo {
+      width: 60px;
+      height: 60px;
+      background: var(--accent);
+      border-radius: var(--radius);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 24px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 12px;
+    }
+    .login-brand h1 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--text-primary);
+    }
+    .login-brand p {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      letter-spacing: 0.3px;
+      margin-top: 2px;
+    }
+    .login-divider {
+      margin: 20px 0 24px;
+      text-align: center;
+      border-top: 1px solid var(--border-color);
+      padding-top: 18px;
+      position: relative;
+    }
+    .login-divider span {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      background: var(--bg-secondary);
+      padding: 0 12px;
+      display: inline-block;
+      margin-top: -22px;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 14px;
+    }
+    .form-group label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .form-group .input-field {
+      width: 100%;
+      background: var(--input-bg);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 12px 16px;
+      color: var(--text-primary);
+      font-size: 15px;
+      font-family: var(--font-family);
+      outline: none;
+      transition: var(--transition);
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    .form-group .input-field:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.25);
+    }
+    .form-group .input-field::placeholder {
+      color: var(--text-muted);
+      opacity: 0.6;
+    }
+    .form-group .input-field.name-field { display: none; }
+    .form-group .input-field.name-field.visible { display: block; }
+
+    /* ===== BUTTONS ===== */
+    .btn-primary {
+      width: 100%;
+      background: var(--accent);
+      color: #ffffff;
+      border: none;
+      border-radius: 30px;
+      padding: 14px 24px;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: var(--font-family);
+      cursor: pointer;
+      transition: all 0.25s ease;
+      box-shadow: 0 4px 16px rgba(46, 125, 50, 0.3);
+      position: relative;
+      overflow: hidden;
+      margin-top: 6px;
+      letter-spacing: 0.3px;
+    }
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(46, 125, 50, 0.5);
+    }
+    .btn-primary:active { transform: translateY(0); }
+
+    .btn-primary-solid {
+      background: var(--accent);
+      color: #ffffff;
+      border: none;
+      border-radius: 30px;
+      padding: 10px 22px;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: var(--font-family);
+      cursor: pointer;
+      transition: all 0.25s ease;
+      box-shadow: 0 4px 14px rgba(46, 125, 50, 0.3);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-primary-solid:hover {
+      background: var(--accent-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(46, 125, 50, 0.5);
+    }
+
+    .btn-ghost {
+      background: var(--bg-card);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 30px;
+      padding: 8px 18px;
+      font-size: 13px;
+      font-weight: 500;
+      font-family: var(--font-family);
+      cursor: pointer;
+      transition: all 0.25s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    .btn-ghost:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(46, 125, 50, 0.2);
+      background: var(--bg-surface);
+    }
+
+    .btn-danger {
+      background: var(--red);
+      color: #ffffff;
+      border: none;
+      border-radius: 30px;
+      padding: 8px 18px;
+      font-size: 13px;
+      font-weight: 500;
+      font-family: var(--font-family);
+      cursor: pointer;
+      transition: all 0.25s ease;
+      box-shadow: 0 4px 14px rgba(231, 76, 60, 0.25);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-danger:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(231, 76, 60, 0.4);
+      filter: brightness(1.1);
+    }
+
+    .btn-success {
+      background: var(--green);
+      color: #000000;
+      border: none;
+      border-radius: 30px;
+      padding: 8px 18px;
+      font-size: 13px;
+      font-weight: 500;
+      font-family: var(--font-family);
+      cursor: pointer;
+      transition: all 0.25s ease;
+      box-shadow: 0 4px 14px rgba(46, 204, 113, 0.25);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-success:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(46, 204, 113, 0.4);
+      filter: brightness(1.05);
+    }
+
+    .btn-sm { padding: 6px 16px; font-size: 11px; border-radius: 30px; }
+
+    .auth-toggle {
+      background: none;
+      border: none;
+      color: var(--accent);
+      font-size: 13px;
+      cursor: pointer;
+      text-decoration: underline;
+      margin-top: 14px;
+      display: block;
+      width: 100%;
+      text-align: center;
+      font-family: var(--font-family);
+      transition: var(--transition);
+    }
+    .auth-toggle:hover { color: var(--text-primary); }
+
+    .forgot-password {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 12px;
+      cursor: pointer;
+      text-decoration: underline;
+      margin-top: 8px;
+      display: block;
+      width: 100%;
+      text-align: center;
+      font-family: var(--font-family);
+      transition: var(--transition);
+    }
+    .forgot-password:hover { color: var(--accent); }
+
+    /* ===== THEME TOGGLE ===== */
+    .theme-toggle-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--bg-card);
+      border: 2px solid var(--accent);
+      border-radius: 50px;
+      padding: 6px 16px 6px 12px;
+      box-shadow: 0 0 20px rgba(46, 125, 50, 0.25);
+      transition: all 0.3s ease;
+      cursor: pointer;
+      user-select: none;
+    }
+    .theme-toggle-wrapper:hover {
+      border-color: var(--accent-hover);
+      box-shadow: 0 0 30px rgba(46, 125, 50, 0.4);
+      transform: scale(1.02);
+    }
+    .theme-toggle-wrapper .toggle-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      font-family: var(--font-family);
+      letter-spacing: 0.3px;
+    }
+    .theme-toggle-switch {
+      position: relative;
+      width: 50px;
+      height: 28px;
+      background: var(--border-color);
+      border-radius: 50px;
+      transition: all 0.3s ease;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+    .theme-toggle-switch .toggle-slider {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 22px;
+      height: 22px;
+      background: #ffffff;
+      border-radius: 50%;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    [data-theme="dark"] .theme-toggle-switch { background: var(--accent); }
+    [data-theme="dark"] .theme-toggle-switch .toggle-slider { left: 25px; background: #ffffff; }
+    [data-theme="light"] .theme-toggle-switch { background: #c8cdd9; }
+    [data-theme="light"] .theme-toggle-switch .toggle-slider { left: 3px; background: #ffffff; }
+    .theme-toggle-wrapper .toggle-icon { font-size: 20px; line-height: 1; }
+
+    /* ===== APP LAYOUT ===== */
+    #app { display: none; }
+    #app.visible { display: block; }
+
+    header {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      flex-wrap: wrap;
+      gap: 8px;
+      transition: background 0.3s, border-color 0.3s;
+    }
+    .header-left { display: flex; align-items: center; gap: 10px; }
+    .header-logo {
+      width: 32px;
+      height: 32px;
+      background: var(--accent);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 700;
+      color: #ffffff;
+    }
+    .header-title { font-size: 16px; font-weight: 600; }
+    .header-sub { font-size: 10px; color: var(--text-muted); font-family: var(--font-mono); }
+    .header-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+    .user-chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      padding: 3px 12px 3px 3px;
+      font-size: 13px;
+      transition: background 0.3s, border-color 0.3s;
+    }
+    .user-chip .avatar {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .navbar {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      padding: 8px 14px;
+      display: flex;
+      overflow-x: auto;
+      gap: 6px;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      transition: background 0.3s, border-color 0.3s;
+      flex-wrap: nowrap;
+    }
+    .navbar::-webkit-scrollbar { display: none; }
+    .nav-tab {
+      padding: 8px 18px;
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: 30px;
+      cursor: pointer;
+      color: var(--text-muted);
+      white-space: nowrap;
+      transition: var(--transition);
+      background: transparent;
+      border: 1px solid transparent;
+      flex-shrink: 0;
+      font-family: var(--font-family);
+    }
+    .nav-tab:hover {
+      color: var(--text-primary);
+      background: var(--bg-surface);
+      border-color: var(--border-color);
+    }
+    .nav-tab.active {
+      color: #ffffff;
+      background: var(--accent);
+      border-color: var(--accent);
+      box-shadow: 0 4px 14px rgba(46, 125, 50, 0.3);
+    }
+
+    .page { display: none; padding: 16px 20px 32px; }
+    .page.active { display: block; }
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .page-title { font-size: 18px; font-weight: 600; }
+
+    .search-input {
+      width: 100%;
+      max-width: 300px;
+      background: var(--input-bg);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      color: var(--text-primary);
+      font-size: 14px;
+      font-family: var(--font-family);
+      outline: none;
+      transition: var(--transition);
+    }
+    .search-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.15);
+    }
+    .search-input::placeholder { color: var(--text-muted); opacity: 0.6; }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      transition: background 0.3s, border-color 0.3s;
+    }
+    .stat-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-muted);
+      margin-bottom: 3px;
+      font-family: var(--font-mono);
+    }
+    .stat-value {
+      font-size: 20px;
+      font-weight: 600;
+      font-family: var(--font-mono);
+    }
+
+    .panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      transition: background 0.3s, border-color 0.3s;
+    }
+    .panel-header {
+      padding: 10px 16px;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-color);
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: background 0.3s, border-color 0.3s;
+    }
+    .panel-body { padding: 12px 16px; }
+
+    .pos-grid {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 12px;
+      align-items: start;
+    }
+    .product-search { padding: 10px; }
+    .product-search input {
+      width: 100%;
+      background: var(--input-bg);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      color: var(--text-primary);
+      font-size: 14px;
+      font-family: var(--font-family);
+      outline: none;
+      transition: var(--transition);
+    }
+    .product-search input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.15);
+    }
+    .product-list { max-height: 380px; overflow-y: auto; }
+    .product-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-top: 1px solid var(--border-color);
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .product-item:hover { background: rgba(46, 125, 50, 0.06); }
+    .product-name { font-size: 14px; font-weight: 500; }
+    .product-stock { font-size: 11px; color: var(--text-muted); }
+    .product-price { font-family: var(--font-mono); font-size: 14px; color: var(--accent); }
+
+    .cart-items { max-height: 280px; overflow-y: auto; }
+    .cart-item {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 8px;
+      align-items: center;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .cart-item-name { font-size: 13px; font-weight: 500; }
+    .cart-item-sub { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+    .qty-control { display: flex; align-items: center; gap: 6px; }
+    .qty-btn {
+      width: 26px; height: 26px;
+      border-radius: 30px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-surface);
+      color: var(--text-primary);
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: var(--transition);
+      font-family: var(--font-family);
+    }
+    .qty-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--bg-card); transform: scale(1.05); }
+    .qty-number { font-family: var(--font-mono); font-size: 14px; min-width: 26px; text-align: center; }
+    .cart-total { font-family: var(--font-mono); font-size: 14px; color: var(--green); }
+
+    .cart-footer { padding: 12px 16px; }
+    .cart-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+    .cart-row.total {
+      font-size: 18px;
+      font-weight: 600;
+      border-top: 1px solid var(--border-color);
+      padding-top: 10px;
+      margin-top: 10px;
+    }
+    .payment-methods {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin: 10px 0;
+    }
+    .payment-btn {
+      padding: 8px;
+      border-radius: 30px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-surface);
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      text-align: center;
+      transition: var(--transition);
+      font-family: var(--font-family);
+    }
+    .payment-btn:hover,
+    .payment-btn.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(46, 125, 50, 0.08);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(46, 125, 50, 0.15);
+    }
+
+    .table-wrapper {
+      overflow-x: auto;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-color);
+      -webkit-overflow-scrolling: touch;
+      background: var(--bg-card);
+      transition: background 0.3s, border-color 0.3s;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      min-width: 700px;
+    }
+    thead { background: var(--bg-surface); }
+    th {
+      padding: 8px 12px;
+      text-align: left;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    td {
+      padding: 8px 12px;
+      border-top: 1px solid var(--border-color);
+      vertical-align: middle;
+      font-size: 13px;
+    }
+    tbody tr:hover td { background: rgba(46, 125, 50, 0.03); }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 10px;
+      border-radius: 16px;
+      font-size: 10px;
+      font-weight: 600;
+      font-family: var(--font-mono);
+    }
+    .pill-green { background: rgba(46, 204, 113, 0.12); color: var(--green); }
+    .pill-red { background: rgba(231, 76, 60, 0.12); color: var(--red); }
+    .pill-yellow { background: rgba(243, 156, 18, 0.12); color: var(--yellow); }
+    .pill-blue { background: rgba(52, 152, 219, 0.12); color: var(--blue); }
+    .pill-purple { background: rgba(155, 89, 182, 0.12); color: var(--purple); }
+
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: var(--modal-overlay);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      transition: background 0.3s;
+    }
+    .overlay.open { display: flex; }
+    .modal {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      width: 100%;
+      max-width: 440px;
+      overflow: hidden;
+      animation: modalIn 0.2s ease;
+      max-height: 90vh;
+      overflow-y: auto;
+      transition: background 0.3s, border-color 0.3s;
+    }
+    @keyframes modalIn {
+      from { transform: translateY(14px); opacity: 0; }
+      to { transform: none; opacity: 1; }
+    }
+    .modal-header {
+      padding: 16px 22px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-header h3 { font-size: 17px; font-weight: 600; }
+    .modal-body { padding: 18px 22px; }
+    .modal-footer {
+      padding: 14px 22px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .form-grid .full-width { grid-column: 1 / -1; }
+    .form-control {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .form-control label {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .form-control input,
+    .form-control select {
+      background: var(--input-bg);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+      color: var(--text-primary);
+      font-size: 14px;
+      font-family: var(--font-family);
+      outline: none;
+      width: 100%;
+      transition: var(--transition);
+    }
+    .form-control input:focus,
+    .form-control select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.15);
+    }
+    .form-control select option { background: var(--bg-card); }
+
+    .toast-container {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      z-index: 999;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-width: 90%;
+    }
+    .toast {
+      background: var(--toast-bg);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 10px 18px;
+      font-size: 14px;
+      min-width: 200px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      animation: toastIn 0.2s ease;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+      color: var(--text-primary);
+      transition: background 0.3s, border-color 0.3s, color 0.3s;
+    }
+    .toast-success { border-left: 4px solid var(--green); }
+    .toast-error { border-left: 4px solid var(--red); }
+    .toast-info { border-left: 4px solid var(--accent); }
+    @keyframes toastIn {
+      from { transform: translateX(18px); opacity: 0; }
+      to { transform: none; opacity: 1; }
+    }
+
+    .receipt {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.7;
+      background: var(--bg-primary);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 60vh;
+      overflow-y: auto;
+      transition: background 0.3s;
+    }
+
+    .employee-card {
+      cursor: pointer;
+      transition: var(--transition);
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .employee-card:hover { border-color: var(--accent); background: rgba(46, 125, 50, 0.05); }
+    .employee-card.active { border-color: var(--accent); background: rgba(46, 125, 50, 0.1); }
+    .employee-card .status-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+    .employee-card .status-dot.online { background: var(--green); }
+    .employee-card .status-dot.offline { background: var(--red); }
+    .employee-card .emp-name { font-weight: 600; font-size: 14px; }
+    .employee-card .emp-role { font-size: 11px; color: var(--text-muted); }
+    .employee-card .emp-badge {
+      background: var(--accent);
+      color: #ffffff;
+      padding: 1px 10px;
+      border-radius: 12px;
+      font-size: 10px;
+      font-weight: 600;
+      margin-left: auto;
+    }
+
+    #employee-status {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 10px;
+      padding: 12px;
+    }
+
+    #install-btn {
+      position: fixed;
+      bottom: 80px;
+      right: 16px;
+      z-index: 999;
+      box-shadow: 0 4px 16px rgba(46, 125, 50, 0.3);
+    }
+
+    @media (max-width: 1024px) {
+      .pos-grid { grid-template-columns: 1fr 300px; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      #employee-status { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+    }
+    @media (max-width: 768px) {
+      .pos-grid { grid-template-columns: 1fr; gap: 14px; }
+      .stats-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+      .stat-card { padding: 10px 14px; }
+      .stat-value { font-size: 16px; }
+      header { padding: 8px 12px; }
+      .header-title { font-size: 15px; }
+      .nav-tab { font-size: 12px; padding: 6px 14px; }
+      .navbar { padding: 6px 10px; gap: 4px; }
+      .page { padding: 10px 12px 24px; }
+      .login-card { padding: 28px 20px 24px; }
+      .login-brand h1 { font-size: 20px; }
+      .cart-items { max-height: 220px; }
+      .product-list { max-height: 280px; }
+      .modal { max-width: 95%; margin: 10px; }
+      .form-grid { grid-template-columns: 1fr; }
+      .form-grid .full-width { grid-column: 1; }
+      .page-header { flex-direction: column; align-items: stretch; gap: 6px; }
+      .payment-methods { grid-template-columns: 1fr 1fr; }
+      table { font-size: 12px; min-width: 600px; }
+      th, td { padding: 6px 10px; }
+      #employee-status { grid-template-columns: 1fr 1fr; gap: 8px; }
+      .employee-card { padding: 8px 12px; }
+      .employee-card .emp-name { font-size: 13px; }
+      .theme-toggle-wrapper { padding: 4px 12px 4px 10px; gap: 8px; }
+      .theme-toggle-wrapper .toggle-label { font-size: 11px; }
+      .theme-toggle-switch { width: 40px; height: 22px; }
+      .theme-toggle-switch .toggle-slider { width: 18px; height: 18px; top: 2px; left: 2px; }
+      [data-theme="dark"] .theme-toggle-switch .toggle-slider { left: 20px; }
+      .theme-toggle-wrapper .toggle-icon { font-size: 16px; }
+      .search-input { max-width: 100%; }
+    }
+    @media (max-width: 480px) {
+      .stats-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
+      .stat-card { padding: 8px 12px; }
+      .stat-value { font-size: 14px; }
+      .stat-label { font-size: 9px; }
+      header { padding: 6px 10px; }
+      .header-title { font-size: 13px; }
+      .header-logo { width: 28px; height: 28px; font-size: 11px; }
+      .header-sub { display: none; }
+      .user-chip { font-size: 11px; padding: 2px 8px 2px 2px; }
+      .user-chip .avatar { width: 20px; height: 20px; font-size: 9px; }
+      .nav-tab { font-size: 11px; padding: 5px 12px; }
+      .navbar { padding: 4px 8px; gap: 3px; }
+      .page { padding: 8px 10px 20px; }
+      .page-title { font-size: 16px; }
+      .product-item { padding: 8px 12px; }
+      .product-name { font-size: 13px; }
+      .product-price { font-size: 13px; }
+      .cart-item { padding: 6px 10px; }
+      .cart-item-name { font-size: 12px; }
+      .qty-btn { width: 22px; height: 22px; font-size: 12px; }
+      .qty-number { font-size: 12px; min-width: 20px; }
+      .cart-footer { padding: 10px 12px; }
+      .cart-row { font-size: 13px; }
+      .cart-row.total { font-size: 16px; }
+      .payment-btn { font-size: 11px; padding: 6px; }
+      .panel-header { font-size: 10px; padding: 6px 12px; }
+      .panel-body { padding: 10px 12px; }
+      table { font-size: 11px; min-width: 480px; }
+      th, td { padding: 5px 8px; }
+      #employee-status { grid-template-columns: 1fr; gap: 6px; }
+      .employee-card { padding: 6px 10px; }
+      .employee-card .emp-name { font-size: 12px; }
+      .employee-card .emp-badge { font-size: 9px; padding: 1px 8px; }
+      .login-card { padding: 20px 16px 18px; }
+      .login-brand .logo { width: 48px; height: 48px; font-size: 20px; }
+      .login-brand h1 { font-size: 18px; }
+      .login-brand p { font-size: 10px; }
+      .form-group .input-field { font-size: 14px; padding: 10px 14px; }
+      .btn-primary { font-size: 14px; padding: 12px; }
+      .modal { padding: 0; }
+      .modal-header { padding: 10px 16px; }
+      .modal-header h3 { font-size: 15px; }
+      .modal-body { padding: 10px 16px; }
+      .modal-footer { padding: 10px 16px; }
+      .receipt { font-size: 12px; padding: 12px; }
+      #install-btn { bottom: 60px; right: 10px; font-size: 11px; padding: 4px 10px; }
+      .theme-toggle-wrapper { padding: 3px 8px 3px 6px; gap: 6px; border-width: 1.5px; }
+      .theme-toggle-wrapper .toggle-label { font-size: 10px; }
+      .theme-toggle-switch { width: 34px; height: 20px; }
+      .theme-toggle-switch .toggle-slider { width: 16px; height: 16px; top: 2px; left: 2px; }
+      [data-theme="dark"] .theme-toggle-switch .toggle-slider { left: 16px; }
+      .theme-toggle-wrapper .toggle-icon { font-size: 14px; }
+      .search-input { max-width: 100%; font-size: 13px; padding: 8px 12px; }
+    }
+    @media (max-height: 600px) and (orientation: landscape) {
+      .pos-grid { grid-template-columns: 1fr 1fr; }
+      .product-list { max-height: 180px; }
+      .cart-items { max-height: 140px; }
+      .stats-grid { grid-template-columns: 1fr 1fr 1fr 1fr; }
+      header { padding: 4px 10px; }
+      .page { padding: 6px 12px 14px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===== LOGIN SCREEN ===== -->
+  <div id="loginScreen">
+    <div class="login-card">
+      <div class="login-brand">
+        <div class="logo">FC</div>
+        <h1>FarmersChoice Agrovet</h1>
+        <p>KENYA EDITION · SECURE · CLOUD SYNC</p>
+      </div>
+      <div class="login-divider"><span>Sign In</span></div>
+      <div class="form-group" id="nameField" style="display:none;">
+        <label for="loginName">Full Name</label>
+        <input type="text" id="loginName" class="input-field" placeholder="Enter your full name" autocomplete="off" />
+      </div>
+      <div class="form-group">
+        <label for="loginEmail">Email Address</label>
+        <input type="email" id="loginEmail" class="input-field" placeholder="Enter your email address" autocomplete="off" />
+      </div>
+      <div class="form-group">
+        <label for="loginPassword">Password</label>
+        <input type="password" id="loginPassword" class="input-field" placeholder="Enter your password" autocomplete="new-password" onkeydown="if(event.key==='Enter') handleLogin()" />
+      </div>
+      <button class="btn-primary" onclick="handleLogin()" id="loginBtn">Sign In</button>
+      <div id="authError" class="auth-error"></div>
+      <button class="auth-toggle" onclick="toggleAuthMode()" id="toggleAuthBtn">Don't have an account? Register</button>
+      <button class="forgot-password" onclick="handleForgotPassword()">Forgot Password?</button>
+    </div>
+  </div>
+
+  <!-- ===== APP ===== -->
+  <div id="app">
+    <header>
+      <div class="header-left">
+        <div class="header-logo">FC</div>
+        <div>
+          <div class="header-title">FarmersChoice Agrovet</div>
+          <div class="header-sub" id="headerClock"></div>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="theme-toggle-wrapper" onclick="toggleTheme()" role="button" tabindex="0" aria-label="Toggle theme">
+          <span class="toggle-icon" id="themeIcon">🌙</span>
+          <span class="toggle-label" id="themeLabel"></span>
+          <div class="theme-toggle-switch"><div class="toggle-slider"></div></div>
+        </div>
+        <div class="user-chip" id="userChip">
+          <div class="avatar" id="userAvatar">🧑‍💼</div>
+          <span id="userName">User</span>
+          <span style="color:var(--text-muted);font-size:11px;font-family:var(--font-mono);" id="userRole">EMPLOYEE</span>
+        </div>
+        <button class="btn-ghost btn-sm" onclick="openProfileEdit()">Profile</button>
+        <button class="btn-ghost btn-sm" onclick="handleLogout()">Logout</button>
+      </div>
+    </header>
+
+    <div class="navbar" id="navbar">
+      <button class="nav-tab active" data-page="pos" onclick="goToPage('pos', this)">Sell</button>
+      <button class="nav-tab" data-page="stock" onclick="goToPage('stock', this)">Stock</button>
+      <button class="nav-tab" data-page="mysales" onclick="goToPage('mysales', this)">My Sales</button>
+      <button class="nav-tab" id="tabAll" data-page="allsales" onclick="goToPage('allsales', this)" style="display:none;">All Sales</button>
+      <button class="nav-tab" id="tabUsers" data-page="users" onclick="goToPage('users', this)" style="display:none;">Users</button>
+      <button class="nav-tab" id="tabReports" data-page="reports" onclick="goToPage('reports', this)" style="display:none;">Reports</button>
+      <button class="nav-tab" id="tabLive" data-page="live" onclick="goToPage('live', this)" style="display:none;">Live</button>
+      <button class="nav-tab" id="tabAnalytics" data-page="analytics" onclick="goToPage('analytics', this)" style="display:none;">Analytics</button>
+    </div>
+
+    <!-- SELL -->
+    <div class="page active" id="page-pos">
+      <div class="pos-grid">
+        <div class="panel">
+          <div class="panel-header"><span>Products</span><span id="productCount" style="color:var(--accent);font-family:var(--font-mono);"></span></div>
+          <div class="product-search"><input type="text" id="productSearch" placeholder="Search product..." oninput="renderProducts()" /></div>
+          <div class="product-list" id="productList"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-header"><span>Cart</span><button class="btn-ghost btn-sm" onclick="clearCart()">Clear</button></div>
+          <div class="cart-items" id="cartItems"><div style="padding:24px;text-align:center;color:var(--text-muted);font-size:14px;">Tap a product to add</div></div>
+          <div class="cart-footer">
+            <div class="cart-row"><span>Subtotal</span><span class="mono" id="cartSubtotal">KSh 0</span></div>
+            <div class="cart-row total"><span>Total</span><span class="mono" id="cartTotal">KSh 0</span></div>
+            <div style="margin:8px 0 6px;font-size:11px;color:var(--text-muted);font-family:var(--font-mono);">Payment Method</div>
+            <div class="payment-methods">
+              <div class="payment-btn active" data-payment="Cash" onclick="selectPayment(this)">Cash</div>
+              <div class="payment-btn" data-payment="M-Pesa" onclick="selectPayment(this)">M-Pesa</div>
+              <div class="payment-btn" data-payment="Bank" onclick="selectPayment(this)">Bank</div>
+              <div class="payment-btn" data-payment="Credit" onclick="selectPayment(this)">Credit</div>
+            </div>
+            <div class="form-control" style="margin-bottom:10px;">
+              <label for="customerName">Customer (optional)</label>
+              <input type="text" id="customerName" placeholder="Walk-in" />
+            </div>
+            <button class="btn-primary" style="width:100%;justify-content:center;padding:12px;font-size:15px;" onclick="completeSale()">Complete Sale</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STOCK -->
+    <div class="page" id="page-stock">
+      <div class="page-header"><div class="page-title">Stock</div><div id="stockButtons"></div></div>
+      <div style="margin-bottom:10px;"><input type="text" id="stockSearch" class="search-input" placeholder="Search products..." oninput="renderStock()" /></div>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>#</th><th>Product</th><th>Buy</th><th>Sell</th><th>Margin</th><th>Added</th><th>Remaining</th><th>Status</th><th id="stockActionsCol"></th></tr></thead>
+          <tbody id="stockBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- MY SALES -->
+    <div class="page" id="page-mysales">
+      <div class="page-header"><div class="page-title">My Sales</div><button class="btn-ghost btn-sm" onclick="exportCSV(true)">Export CSV</button></div>
+      <div class="stats-grid" id="myStats"></div>
+      <div class="table-wrapper"><table><thead><tr><th>Receipt</th><th>Time</th><th>Customer</th><th>Items</th><th>Total</th><th>Payment</th><th></th></tr></thead><tbody id="mySalesBody"></tbody></table></div>
+    </div>
+
+    <!-- ALL SALES -->
+    <div class="page" id="page-allsales">
+      <div class="page-header">
+        <div class="page-title">All Sales</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <select id="filterUser" onchange="renderAllSales()" style="padding:6px 12px;font-size:13px;border-radius:30px;background:var(--bg-card);border:1px solid var(--border-color);color:var(--text-primary);"><option value="">All Staff</option></select>
+          <select id="filterPayment" onchange="renderAllSales()" style="padding:6px 12px;font-size:13px;border-radius:30px;background:var(--bg-card);border:1px solid var(--border-color);color:var(--text-primary);"><option value="">All Payments</option><option>Cash</option><option>M-Pesa</option><option>Bank</option><option>Credit</option></select>
+          <button class="btn-ghost btn-sm" onclick="exportCSV(false)">Export CSV</button>
+        </div>
+      </div>
+      <div class="stats-grid" id="allStats"></div>
+      <div class="table-wrapper"><table><thead><tr><th>Receipt</th><th>Time</th><th>Staff</th><th>Customer</th><th>Items</th><th>Total</th><th>Payment</th><th></th></tr></thead><tbody id="allSalesBody"></tbody></table></div>
+    </div>
+
+    <!-- USERS -->
+    <div class="page" id="page-users">
+      <div class="page-header"><div class="page-title">Users</div><button class="btn-primary-solid btn-sm" onclick="openUserModal(null)">Add User</button></div>
+      <div class="table-wrapper"><table><thead><tr><th>Name</th><th>Role</th><th>Email</th><th>Sales</th><th>Revenue</th><th>Status</th><th>Actions</th></tr></thead><tbody id="usersBody"></tbody></table></div>
+    </div>
+
+    <!-- REPORTS -->
+    <div class="page" id="page-reports">
+      <div class="page-title" style="margin-bottom:12px;">Reports</div>
+      <div class="stats-grid" id="reportStats"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px;">
+        <div class="panel"><div class="panel-header">Top Products</div><div id="topProducts" style="padding:12px;"></div></div>
+        <div class="panel"><div class="panel-header">Staff Performance</div><div id="staffPerformance" style="padding:12px;"></div></div>
+        <div class="panel" style="grid-column:1/-1;"><div class="panel-header">Payment Breakdown</div><div id="paymentBreakdown" style="padding:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px;"></div></div>
+      </div>
+    </div>
+
+    <!-- LIVE -->
+    <div class="page" id="page-live">
+      <div class="page-header">
+        <div class="page-title">Live Dashboard</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <span class="pill pill-green" style="font-size:11px;">Online: <span id="onlineCount">0</span></span>
+          <span class="pill pill-yellow" style="font-size:11px;">Today: <span id="todaySales">KSh 0</span></span>
+          <span class="pill pill-purple" style="font-size:11px;">Sales: <span id="liveSaleCount">0</span></span>
+        </div>
+      </div>
+      <div class="stats-grid" id="liveStats"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px;">
+        <div>
+          <button class="btn-primary-solid btn-sm" onclick="filterEmployee('all')" id="filterAllBtn" style="border:2px solid var(--accent);">All Employees</button>
+          <span id="filterLabel" style="color:var(--accent);font-size:13px;margin-left:8px;font-weight:500;">Showing: All Employees</span>
+        </div>
+        <span style="color:var(--text-muted);font-size:11px;">Click an employee to filter</span>
+      </div>
+      <div class="panel" style="margin-bottom:12px;">
+        <div class="panel-header">Employee Status <span style="font-size:10px;color:var(--text-muted);font-weight:400;">(click to filter)</span></div>
+        <div id="employeeStatus"></div>
+      </div>
+      <div class="panel"><div class="panel-header">Live Sales Feed</div><div id="liveFeed" style="max-height:380px;overflow-y:auto;padding:10px;"><div style="color:var(--text-muted);text-align:center;padding:20px;font-size:14px;">Waiting for sales...</div></div></div>
+    </div>
+
+    <!-- ANALYTICS -->
+    <div class="page" id="page-analytics">
+      <div class="page-header">
+        <div class="page-title">Analytics Dashboard</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <select id="analyticsPeriod" onchange="renderAnalytics()" style="padding:6px 12px;font-size:13px;border-radius:30px;background:var(--bg-card);border:1px solid var(--border-color);color:var(--text-primary);"><option value="7">Last 7 Days</option><option value="14">Last 14 Days</option><option value="30" selected>Last 30 Days</option><option value="90">Last 90 Days</option></select>
+          <button class="btn-ghost btn-sm" onclick="refreshAnalytics()">Refresh</button>
+        </div>
+      </div>
+      <div class="stats-grid" id="analyticsStats"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+        <div class="panel"><div class="panel-header">Sales Trend</div><div style="position:relative;height:250px;padding:12px;"><canvas id="salesTrendChart"></canvas></div></div>
+        <div class="panel"><div class="panel-header">Revenue Breakdown</div><div style="position:relative;height:250px;padding:12px;"><canvas id="revenueBreakdownChart"></canvas></div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+        <div class="panel"><div class="panel-header">Peak Hours</div><div id="peakHours" style="padding:12px;"></div></div>
+        <div class="panel"><div class="panel-header">Top Selling Products</div><div id="topProductsAnalytics" style="padding:12px;"></div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="panel"><div class="panel-header">Employee Performance</div><div id="employeePerformance" style="padding:12px;"></div></div>
+        <div class="panel"><div class="panel-header">Week-over-Week Comparison</div><div id="weekOverWeek" style="padding:12px;"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MODALS ===== -->
+  <!-- Receipt -->
+  <div class="overlay" id="receiptModal">
+    <div class="modal">
+      <div class="modal-header"><h3>Receipt</h3><button class="btn-ghost btn-sm" onclick="closeModal('receiptModal')">Close</button></div>
+      <div class="modal-body"><div class="receipt" id="receiptContent"></div></div>
+      <div class="modal-footer">
+        <button class="btn-ghost btn-sm" onclick="printReceipt()">Print</button>
+        <button class="btn-success btn-sm" onclick="downloadReceipt()">Download</button>
+        <button class="btn-ghost btn-sm" onclick="closeModal('receiptModal')">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- User -->
+  <div class="overlay" id="userModal">
+    <div class="modal">
+      <div class="modal-header"><h3 id="userModalTitle">Add User</h3><button class="btn-ghost btn-sm" onclick="closeModal('userModal')">Close</button></div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-control full-width"><label for="userNameInput">Full Name</label><input type="text" id="userNameInput" placeholder="Jane Mwangi" /></div>
+          <div class="form-control"><label for="userRoleInput">Role</label><select id="userRoleInput"><option value="employee">Employee</option><option value="manager">Manager</option><option value="owner">Owner</option></select></div>
+          <div class="form-control"><label for="userEmailInput">Email</label><input type="email" id="userEmailInput" placeholder="jane@farmerschoice.com" /></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button class="btn-ghost btn-sm" onclick="closeModal('userModal')">Cancel</button><button class="btn-primary-solid btn-sm" onclick="saveUser()">Save</button></div>
+    </div>
+  </div>
+
+  <!-- Product -->
+  <div class="overlay" id="productModal">
+    <div class="modal">
+      <div class="modal-header"><h3 id="productModalTitle">Add Product</h3><button class="btn-ghost btn-sm" onclick="closeModal('productModal')">Close</button></div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-control full-width"><label for="productNameInput">Product Name</label><input type="text" id="productNameInput" /></div>
+          <div class="form-control"><label for="productBuyInput">Buying Price (KSh)</label><input type="number" id="productBuyInput" min="0" step="1" /></div>
+          <div class="form-control"><label for="productSellInput">Selling Price (KSh)</label><input type="number" id="productSellInput" min="0" step="1" /></div>
+          <div class="form-control"><label for="productAddedInput">Added Stock</label><input type="number" id="productAddedInput" min="0" step="1" /></div>
+          <div class="form-control"><label for="productRemInput">Remaining Stock</label><input type="number" id="productRemInput" min="0" step="1" /></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button class="btn-ghost btn-sm" onclick="closeModal('productModal')">Cancel</button><button class="btn-primary-solid btn-sm" onclick="saveProduct()">Save</button></div>
+    </div>
+  </div>
+
+  <!-- Restock -->
+  <div class="overlay" id="restockModal">
+    <div class="modal">
+      <div class="modal-header"><h3>Restock <span id="restockProductName" style="color:var(--accent);"></span></h3><button class="btn-ghost btn-sm" onclick="closeModal('restockModal')">Close</button></div>
+      <div class="modal-body">
+        <div style="background:var(--bg-primary);border-radius:var(--radius-sm);padding:12px;margin-bottom:12px;font-family:var(--font-mono);font-size:14px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span>Remaining:</span><span style="color:var(--accent);" id="restockCurrent"></span></div>
+          <div style="display:flex;justify-content:space-between;"><span>Buy price:</span><span style="color:var(--accent);" id="restockBuyPrice"></span></div>
+        </div>
+        <div class="form-control"><label for="restockQty">Units to Add</label><input type="number" id="restockQty" min="1" step="1" placeholder="0" /></div>
+      </div>
+      <div class="modal-footer"><button class="btn-ghost btn-sm" onclick="closeModal('restockModal')">Cancel</button><button class="btn-primary-solid btn-sm" onclick="confirmRestock()">Add Stock</button></div>
+    </div>
+  </div>
+
+  <!-- Profile -->
+  <div class="overlay" id="profileEditModal">
+    <div class="modal">
+      <div class="modal-header"><h3>Edit Profile</h3><button class="btn-ghost btn-sm" onclick="closeModal('profileEditModal')">Close</button></div>
+      <div class="modal-body"><div class="form-grid"><div class="form-control full-width"><label for="profileNameInput">Display Name</label><input type="text" id="profileNameInput" placeholder="Your name" /></div></div></div>
+      <div class="modal-footer"><button class="btn-ghost btn-sm" onclick="closeModal('profileEditModal')">Cancel</button><button class="btn-primary-solid btn-sm" onclick="saveProfileEdit()">Save</button></div>
+    </div>
+  </div>
+
+  <!-- Role -->
+  <div class="overlay" id="roleModal">
+    <div class="modal">
+      <div class="modal-header"><h3>Change Role</h3><button class="btn-ghost btn-sm" onclick="closeModal('roleModal')">Close</button></div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-control full-width"><label>User</label><input type="text" id="roleUserName" disabled style="opacity:0.7;" /></div>
+          <div class="form-control full-width"><label for="roleNewRole">New Role</label><select id="roleNewRole"><option value="employee">Employee</option><option value="manager">Manager</option><option value="owner">Owner</option></select></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button class="btn-ghost btn-sm" onclick="closeModal('roleModal')">Cancel</button><button class="btn-primary-solid btn-sm" onclick="saveRoleChange()">Change Role</button></div>
+    </div>
+  </div>
+
+  <!-- ===== TOAST ===== -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- ===== FIREBASE ===== -->
+  <script type="importmap">
+  {
+    "imports": {
+      "firebase/app": "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
+      "firebase/auth": "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js",
+      "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"
+    }
+  }
+  </script>
+
+  <script type="module">
+  import { initializeApp } from 'firebase/app';
+  import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, sendPasswordResetEmail } from 'firebase/auth';
+  import { getFirestore, collection, doc, addDoc, onSnapshot, query, orderBy, limit, serverTimestamp, setDoc, deleteDoc, getDocs, writeBatch, getDoc } from 'firebase/firestore';
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDWGXWDN6xLE91GFM2U1k7BEU9gEfhziEA",
+    authDomain: "pos-data-ebb1a.firebaseapp.com",
+    projectId: "pos-data-ebb1a",
+    storageBucket: "pos-data-ebb1a.firebasestorage.app",
+    messagingSenderId: "913225181936",
+    appId: "1:913225181936:web:5464be84353705b7233035"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  window.auth = auth;
+  window.db = db;
+  window.firebaseApp = app;
+  window.collection = collection;
+  window.doc = doc;
+  window.addDoc = addDoc;
+  window.onSnapshot = onSnapshot;
+  window.query = query;
+  window.orderBy = orderBy;
+  window.limit = limit;
+  window.serverTimestamp = serverTimestamp;
+  window.setDoc = setDoc;
+  window.deleteDoc = deleteDoc;
+  window.getDocs = getDocs;
+  window.getDoc = getDoc;
+  window.writeBatch = writeBatch;
+  window.signInWithEmailAndPassword = signInWithEmailAndPassword;
+  window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
+  window.signOut = signOut;
+  window.sendPasswordResetEmail = sendPasswordResetEmail;
+
+  onAuthStateChanged(auth, (user) => {
+    if (user) { console.log('Firebase authenticated:', user.uid); window.firebaseUID = user.uid; }
+  });
+
+  window.saveSaleToFirebase = async function(saleData) {
+    try { const docRef = await addDoc(collection(db, 'sales'), { ...saleData, timestamp: serverTimestamp(), synced: true }); return docRef.id; } catch (error) { console.error('Failed to save to Firebase:', error); return null; }
+  };
+  window.listenToAllSales = function(callback) {
+    const q = query(collection(db, 'sales'), orderBy('timestamp', 'desc'), limit(100));
+    return onSnapshot(q, (snapshot) => {
+      const sales = [];
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        const time = data.timestamp ? (data.timestamp.toDate ? data.timestamp.toDate().toISOString() : data.time) : data.time;
+        sales.push({ id: doc.id, ...data, time: time || new Date().toISOString() });
+      });
+      callback(sales);
+    });
+  };
+  window.syncUsersToFirebase = async function(users) {
+    try {
+      const batch = writeBatch(db);
+      const snapshot = await getDocs(collection(db, 'users'));
+      const existingIds = new Set(); snapshot.forEach(doc => existingIds.add(doc.id));
+      for (const user of users) { const userRef = doc(db, 'users', user.id); batch.set(userRef, user); existingIds.delete(user.id); }
+      for (const id of existingIds) { batch.delete(doc(db, 'users', id)); }
+      await batch.commit(); return true;
+    } catch (error) { console.error('Failed to sync users:', error); return false; }
+  };
+  window.deleteUserFromFirebase = async function(userId) {
+    try { await deleteDoc(doc(db, 'users', userId)); return true; } catch (error) { console.error('Failed to delete user:', error); return false; }
+  };
+  window.listenToUsers = function(callback) {
+    return onSnapshot(collection(db, 'users'), (snapshot) => {
+      const users = []; snapshot.forEach(doc => { users.push({ id: doc.id, ...doc.data() }); });
+      callback(users);
+    });
+  };
+  window.syncProductsToFirebase = async function(products) {
+    try {
+      const batch = writeBatch(db);
+      const snapshot = await getDocs(collection(db, 'products'));
+      const existingIds = new Set(); snapshot.forEach(doc => existingIds.add(doc.id));
+      for (const product of products) { const productRef = doc(db, 'products', product.id); batch.set(productRef, product); existingIds.delete(product.id); }
+      for (const id of existingIds) { batch.delete(doc(db, 'products', id)); }
+      await batch.commit(); return true;
+    } catch (error) { console.error('Failed to sync products:', error); return false; }
+  };
+  window.listenToProducts = function(callback) {
+    return onSnapshot(collection(db, 'products'), (snapshot) => {
+      const products = []; snapshot.forEach(doc => { products.push({ id: doc.id, ...doc.data() }); });
+      callback(products);
+    });
+  };
+  window.updateProductInFirebase = async function(productId, updates) {
+    try { await setDoc(doc(db, 'products', productId), updates, { merge: true }); return true; } catch (error) { console.error('Failed to update product:', error); return false; }
+  };
+  console.log('Firebase sync ready');
+  window.firebaseFunctionsReady = true;
+  </script>
+
+  <!-- ===== APPLICATION LOGIC ===== -->
+  <script>
+    // ============================================
+    // THEME
+    // ============================================
+    function toggleTheme() {
+      const html = document.documentElement;
+      const current = html.getAttribute('data-theme') || 'dark';
+      const next = current === 'dark' ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      const icon = document.getElementById('themeIcon');
+      const label = document.getElementById('themeLabel');
+      if (next === 'light') { if (icon) icon.textContent = '☀️'; if (label) label.textContent = ''; } else { if (icon) icon.textContent = '🌙'; if (label) label.textContent = ''; }
+      if (document.getElementById('page-analytics').classList.contains('active')) renderAnalytics();
+    }
+
+    // ============================================
+    // STORAGE
+    // ============================================
+    const DB = {
+      get(k) { try { return JSON.parse(localStorage.getItem('bt3_' + k)); } catch (e) { return null; } },
+      set(k, v) { localStorage.setItem('bt3_' + k, JSON.stringify(v)); },
+      del(k) { localStorage.removeItem('bt3_' + k); }
+    };
+
+    const SEED_PRODUCTS = [
+      { id: 'p1', name: 'Maize Seed (1kg)', buy: 150, sell: 200, added: 20, remaining: 20 },
+      { id: 'p2', name: 'Bean Seed (1kg)', buy: 120, sell: 170, added: 15, remaining: 15 },
+      { id: 'p3', name: 'NPK Fertilizer (50kg)', buy: 1800, sell: 2200, added: 5, remaining: 5 },
+      { id: 'p4', name: 'DAP Fertilizer (50kg)', buy: 2200, sell: 2600, added: 4, remaining: 4 },
+      { id: 'p5', name: 'Urea Fertilizer (50kg)', buy: 1600, sell: 2000, added: 6, remaining: 6 },
+      { id: 'p6', name: 'Roundup Weedkiller (1L)', buy: 350, sell: 450, added: 8, remaining: 8 },
+      { id: 'p7', name: 'Duduthrin Insecticide (1L)', buy: 400, sell: 520, added: 7, remaining: 7 },
+      { id: 'p8', name: 'Milky Spore (200g)', buy: 280, sell: 360, added: 10, remaining: 10 },
+      { id: 'p9', name: 'Chicken Layer Mash (20kg)', buy: 1200, sell: 1500, added: 3, remaining: 3 },
+      { id: 'p10', name: 'Chicken Broiler Mash (20kg)', buy: 1300, sell: 1600, added: 3, remaining: 3 },
+      { id: 'p11', name: 'Dairy Meal (20kg)', buy: 1100, sell: 1400, added: 4, remaining: 4 },
+      { id: 'p12', name: 'Pig Grower (20kg)', buy: 1400, sell: 1800, added: 2, remaining: 2 },
+      { id: 'p13', name: 'Fish Feeds (5kg)', buy: 600, sell: 800, added: 5, remaining: 5 },
+      { id: 'p14', name: 'Poultry Vaccine (dose)', buy: 50, sell: 80, added: 30, remaining: 30 },
+      { id: 'p15', name: 'Dewormer (sheep/goat)', buy: 120, sell: 180, added: 12, remaining: 12 },
+      { id: 'p16', name: 'Cow Dip (1L)', buy: 250, sell: 320, added: 6, remaining: 6 },
+      { id: 'p17', name: 'Watering Can (10L)', buy: 400, sell: 550, added: 8, remaining: 8 },
+      { id: 'p18', name: 'Knapsack Sprayer (16L)', buy: 900, sell: 1200, added: 4, remaining: 4 },
+      { id: 'p19', name: 'Garden Hoe (heavy)', buy: 350, sell: 480, added: 6, remaining: 6 },
+      { id: 'p20', name: 'Pruning Shears', buy: 280, sell: 380, added: 5, remaining: 5 },
+      { id: 'p21', name: 'Rope (50m)', buy: 180, sell: 240, added: 8, remaining: 8 },
+      { id: 'p22', name: 'Mulch Film (roll)', buy: 500, sell: 680, added: 3, remaining: 3 },
+      { id: 'p23', name: 'Greenhouse Net (4m x 10m)', buy: 2200, sell: 2800, added: 2, remaining: 2 },
+      { id: 'p24', name: 'Drip Irrigation Kit', buy: 3800, sell: 4600, added: 1, remaining: 1 }
+    ];
+
+    function initDB() {
+      if (!DB.get('products')) DB.set('products', SEED_PRODUCTS);
+      if (!DB.get('users')) DB.set('users', []);
+      if (!DB.get('sales')) DB.set('sales', []);
+    }
+
+    function getUsers() { return DB.get('users') || []; }
+    function getProducts() { return DB.get('products') || []; }
+    function getSales() { return DB.get('sales') || []; }
+    function setUsers(v) { DB.set('users', v); }
+    function setProducts(v) { DB.set('products', v); }
+    function setSales(v) { DB.set('sales', v); }
+
+    // ============================================
+    // AUTH & LOGIN
+    // ============================================
+    const ROLE_COLORS = { owner: '#2e7d32', manager: '#3498db', employee: '#2ecc71' };
+    const ROLE_ICONS = { owner: '👑', manager: '🎯', employee: '🧑‍💼' };
+
+    let currentUser = null;
+    let liveSalesListener = null;
+    let firebaseSalesData = [];
+    let firebaseUsersListener = null;
+    let firebaseProductsListener = null;
+    let roleChangeTargetId = null;
+    let isSignUpMode = false;
+    let cart = [];
+    let paymentMethod = 'Cash';
+
+    // ============================================
+    // EMAIL NOTIFICATIONS (placeholder – same logic)
+    // ============================================
+    const WEB3FORMS_ACCESS_KEY = 'b6b0d936-009d-457d-baad-b3efead47548';
+
+    let outOfStockAlerted = new Set();
+    let lastLowStockCheck = {};
+    const LOW_STOCK_THRESHOLD = 5;
+
+    function getOwnerInfo() {
+      const users = getUsers();
+      const owner = users.find(u => u.role === 'owner');
+      return { email: owner ? owner.email : null, name: owner ? owner.name : 'Store Owner' };
+    }
+
+    async function sendCombinedStockAlert(outOfStockItems, lowStockItems) {
+      try {
+        const owner = getOwnerInfo();
+        if (!owner.email) { console.warn('⚠️ No owner email found.'); return false; }
+        let hasNewAlerts = false;
+        const currentTime = Date.now();
+        for (const product of outOfStockItems) {
+          const alertKey = `out_${product.id}`;
+          if (!outOfStockAlerted.has(alertKey)) { hasNewAlerts = true; outOfStockAlerted.add(alertKey); }
+        }
+        for (const product of lowStockItems) {
+          const alertKey = `low_${product.id}`;
+          const lastSent = lastLowStockCheck[alertKey] || 0;
+          if (currentTime - lastSent >= 3600000) { hasNewAlerts = true; lastLowStockCheck[alertKey] = currentTime; }
+        }
+        if (!hasNewAlerts) return false;
+
+        let message = `🏪 FarmersChoice Agrovet - Stock Alert Summary\n═══════════════════════════════════════════\nGenerated: ${new Date().toLocaleString('en-KE')}\n═══════════════════════════════════════════\n\n`;
+        if (outOfStockItems.length > 0) {
+          message += `🚫 OUT OF STOCK (${outOfStockItems.length} items)\n───────────────────────────────────────────\n`;
+          outOfStockItems.forEach((p, index) => {
+            message += `  ${index + 1}. ❌ ${p.name}\n     Remaining: ${p.remaining} units\n     Buy: KSh ${Number(p.buy).toLocaleString()}\n     Sell: KSh ${Number(p.sell).toLocaleString()}\n     Profit: KSh ${Number(p.sell - p.buy).toLocaleString()}\n`;
+          });
+          message += `\n`;
+        }
+        if (lowStockItems.length > 0) {
+          message += `⚠️ LOW STOCK (${lowStockItems.length} items)\n───────────────────────────────────────────\n`;
+          lowStockItems.forEach((p, index) => {
+            message += `  ${index + 1}. ⚠️ ${p.name}\n     Remaining: ${p.remaining} units\n     Buy: KSh ${Number(p.buy).toLocaleString()}\n     Sell: KSh ${Number(p.sell).toLocaleString()}\n     Profit: KSh ${Number(p.sell - p.buy).toLocaleString()}\n`;
+          });
+          message += `\n`;
+        }
+        const urgencyText = outOfStockItems.length > 0 ? `⚠️ URGENT: ${outOfStockItems.length} product(s) are OUT OF STOCK!` : `⚠️ ${lowStockItems.length} product(s) are running LOW on stock.`;
+        message += `\n${urgencyText}\n\n═══════════════════════════════════════════\nFarmersChoice Agrovet · Kenya Edition\n`;
+
+        const subject = outOfStockItems.length > 0 ? `🚨 URGENT: ${outOfStockItems.length} Product(s) OUT OF STOCK!` : `⚠️ ${lowStockItems.length} Product(s) LOW STOCK - Please Restock`;
+
+        const formData = new FormData();
+        formData.append('access_key', WEB3FORMS_ACCESS_KEY);
+        formData.append('subject', subject);
+        formData.append('from_name', 'FarmersChoice Agrovet');
+        formData.append('from_email', 'noreply@farmerschoice.com');
+        formData.append('to_email', owner.email);
+        formData.append('to_name', owner.name);
+        formData.append('message', message);
+
+        const response = await fetch('https://api.web3forms.com/submit', { method: 'POST', body: formData });
+        const result = await response.json();
+        if (result.success) {
+          showToast('📧 Stock alert sent to owner!', 'success');
+          return true;
+        } else {
+          console.error('❌ Email failed:', result);
+          showToast('⚠️ Stock alert detected but email failed.', 'error');
+          return false;
+        }
+      } catch (error) {
+        console.error('❌ Failed to send email:', error);
+        return false;
+      }
+    }
+
+    async function checkLowStockAndNotify() {
+      const products = getProducts();
+      const outOfStock = products.filter(p => p.remaining <= 0);
+      const lowStock = products.filter(p => p.remaining <= LOW_STOCK_THRESHOLD && p.remaining > 0);
+      if (outOfStock.length === 0 && lowStock.length === 0) {
+        outOfStockAlerted.clear();
+        lastLowStockCheck = {};
+        return;
+      }
+      await sendCombinedStockAlert(outOfStock, lowStock);
+    }
+
+    function resetOutOfStockAlert(productId) {
+      const alertKey = `out_${productId}`;
+      if (outOfStockAlerted.has(alertKey)) outOfStockAlerted.delete(alertKey);
+      const lowKey = `low_${productId}`;
+      if (lastLowStockCheck[lowKey]) lastLowStockCheck[lowKey] = 0;
+    }
+
+    // ============================================
+    // PWA INSTALL
+    // ============================================
+    let deferredPrompt = null;
+    function setupInstallPrompt() {
+      window.addEventListener('beforeinstallprompt', (event) => {
+        event.preventDefault();
+        deferredPrompt = event;
+        if (!document.getElementById('install-btn')) {
+          const installBtn = document.createElement('button');
+          installBtn.className = 'btn-primary-solid btn-sm';
+          installBtn.id = 'install-btn';
+          installBtn.textContent = '📱 Install App';
+          installBtn.onclick = () => {
+            if (deferredPrompt) {
+              deferredPrompt.prompt();
+              deferredPrompt.userChoice.then((choiceResult) => {
+                if (choiceResult.outcome === 'accepted') showToast('App installed!', 'success');
+                else showToast('Installation cancelled.', 'info');
+                deferredPrompt = null;
+                document.getElementById('install-btn')?.remove();
+              });
+            }
+          };
+          document.body.appendChild(installBtn);
+        }
+      });
+      window.addEventListener('appinstalled', () => {
+        showToast('FarmersChoice Agrovet installed!', 'success');
+        document.getElementById('install-btn')?.remove();
+      });
+    }
+
+    // ============================================
+    // AUTH FUNCTIONS
+    // ============================================
+    function toggleAuthMode() {
+      isSignUpMode = !isSignUpMode;
+      const btn = document.getElementById('toggleAuthBtn');
+      const loginBtn = document.getElementById('loginBtn');
+      const errorDiv = document.getElementById('authError');
+      const nameField = document.getElementById('nameField');
+      errorDiv.textContent = '';
+      if (isSignUpMode) {
+        btn.textContent = 'Already have an account? Sign in';
+        loginBtn.textContent = 'Create Account';
+        nameField.style.display = 'block';
+      } else {
+        btn.textContent = "Don't have an account? Register";
+        loginBtn.textContent = 'Sign In';
+        nameField.style.display = 'none';
+      }
+    }
+
+    async function handleLogin() {
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const name = document.getElementById('loginName').value.trim();
+      const errorDiv = document.getElementById('authError');
+      const loginBtn = document.getElementById('loginBtn');
+
+      if (!email || !password) { errorDiv.textContent = 'Please enter email and password.'; return; }
+      if (isSignUpMode && !name) { errorDiv.textContent = 'Please enter your full name.'; return; }
+
+      errorDiv.textContent = 'Processing...';
+      loginBtn.disabled = true;
+
+      try {
+        let userCredential;
+        if (isSignUpMode) {
+          userCredential = await window.createUserWithEmailAndPassword(window.auth, email, password);
+          const firebaseUser = userCredential.user;
+          const usersSnapshot = await window.getDocs(window.collection(window.db, 'users'));
+          const isFirstUser = usersSnapshot.empty;
+          const role = isFirstUser ? 'owner' : 'employee';
+          const user = { id: firebaseUser.uid, name, role, email, active: true, setup: true, createdAt: new Date().toISOString() };
+          await window.setDoc(window.doc(window.db, 'users', firebaseUser.uid), user);
+          let users = getUsers(); users.push(user); setUsers(users);
+          currentUser = user;
+          errorDiv.textContent = ''; loginBtn.disabled = false;
+          launchApp();
+          if (role === 'owner') showToast('👑 You are the Owner!', 'success');
+          else showToast('Account created! Welcome, ' + name + '!', 'success');
+          setTimeout(checkLowStockAndNotify, 8000);
+        } else {
+          userCredential = await window.signInWithEmailAndPassword(window.auth, email, password);
+          const firebaseUser = userCredential.user;
+          const userDoc = await window.getDoc(window.doc(window.db, 'users', firebaseUser.uid));
+          let user;
+          if (userDoc.exists()) { user = userDoc.data(); user.id = firebaseUser.uid; } else {
+            user = { id: firebaseUser.uid, name: email.split('@')[0], role: 'employee', email, active: true, setup: true, createdAt: new Date().toISOString() };
+            await window.setDoc(window.doc(window.db, 'users', firebaseUser.uid), user);
+          }
+          let users = getUsers();
+          const existingIndex = users.findIndex(u => u.id === user.id);
+          if (existingIndex >= 0) users[existingIndex] = user; else users.push(user);
+          setUsers(users);
+          currentUser = user;
+          errorDiv.textContent = ''; loginBtn.disabled = false;
+          launchApp();
+          const roleEmoji = currentUser.role === 'owner' ? '👑' : currentUser.role === 'manager' ? '🎯' : '🧑‍💼';
+          showToast(roleEmoji + ' Welcome back, ' + user.name + '!', 'success');
+          setTimeout(checkLowStockAndNotify, 8000);
+        }
+      } catch (error) {
+        console.error('Auth error:', error);
+        loginBtn.disabled = false;
+        if (error.code === 'auth/user-not-found') {
+          errorDiv.textContent = 'No account found. Click "Register" to create one.';
+          if (!isSignUpMode) { isSignUpMode = true; document.getElementById('toggleAuthBtn').textContent = 'Already have an account? Sign in'; document.getElementById('loginBtn').textContent = 'Create Account'; document.getElementById('nameField').style.display = 'block'; }
+        } else if (error.code === 'auth/wrong-password') errorDiv.textContent = 'Incorrect password.';
+        else if (error.code === 'auth/email-already-in-use') errorDiv.textContent = 'Email already registered. Please sign in.';
+        else if (error.code === 'auth/weak-password') errorDiv.textContent = 'Password should be at least 6 characters.';
+        else if (error.code === 'auth/invalid-email') errorDiv.textContent = 'Invalid email address.';
+        else errorDiv.textContent = error.message;
+      }
+    }
+
+    async function handleForgotPassword() {
+      const email = document.getElementById('loginEmail').value.trim();
+      const errorDiv = document.getElementById('authError');
+      if (!email) { errorDiv.textContent = 'Please enter your email address first.'; return; }
+      try {
+        await window.sendPasswordResetEmail(window.auth, email);
+        errorDiv.textContent = 'Password reset email sent! Check your inbox.';
+        errorDiv.className = 'auth-error success';
+        setTimeout(() => { errorDiv.className = 'auth-error'; }, 5000);
+      } catch (error) {
+        if (error.code === 'auth/user-not-found') errorDiv.textContent = 'No account found with this email.';
+        else errorDiv.textContent = error.message;
+      }
+    }
+
+    function handleLogout() {
+      if (window.signOut) window.signOut(window.auth).catch(() => {});
+      if (liveSalesListener) { liveSalesListener(); liveSalesListener = null; }
+      if (firebaseUsersListener) { firebaseUsersListener(); firebaseUsersListener = null; }
+      if (firebaseProductsListener) { firebaseProductsListener(); firebaseProductsListener = null; }
+      currentUser = null;
+      document.getElementById('loginEmail').value = '';
+      document.getElementById('loginPassword').value = '';
+      document.getElementById('loginName').value = '';
+      document.getElementById('authError').textContent = '';
+      isSignUpMode = false;
+      document.getElementById('toggleAuthBtn').textContent = "Don't have an account? Register";
+      document.getElementById('loginBtn').textContent = 'Sign In';
+      document.getElementById('nameField').style.display = 'none';
+      document.getElementById('loginScreen').style.display = 'flex';
+      document.getElementById('app').classList.remove('visible');
+      cart = [];
+      paymentMethod = 'Cash';
+      showToast('Logged out successfully!', 'info');
+    }
+
+    // ============================================
+    // PROFILE
+    // ============================================
+    function openProfileEdit() {
+      document.getElementById('profileNameInput').value = currentUser.name;
+      document.getElementById('profileEditModal').classList.add('open');
+    }
+    function saveProfileEdit() {
+      const name = document.getElementById('profileNameInput').value.trim();
+      if (!name) { showToast('Name cannot be empty.', 'error'); return; }
+      let users = getUsers();
+      const i = users.findIndex(x => x.id === currentUser.id);
+      const oldName = users[i].name;
+      users[i].name = name;
+      setUsers(users);
+      if (window.syncUsersToFirebase) window.syncUsersToFirebase(users);
+      currentUser = users[i];
+      closeModal('profileEditModal');
+      updateUserChip();
+      showToast('Profile updated from ' + oldName + ' to ' + name, 'success');
+    }
+
+    // ============================================
+    // APP LAUNCH
+    // ============================================
+    function launchApp() {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('app').classList.add('visible');
+
+      const isMgr = currentUser.role === 'manager' || currentUser.role === 'owner';
+      const isOwn = currentUser.role === 'owner';
+
+      document.getElementById('tabAll').style.display = isMgr ? '' : 'none';
+      document.getElementById('tabReports').style.display = isMgr ? '' : 'none';
+      document.getElementById('tabUsers').style.display = isOwn ? '' : 'none';
+      document.getElementById('tabLive').style.display = isMgr ? '' : 'none';
+      document.getElementById('tabAnalytics').style.display = isMgr ? '' : 'none';
+
+      document.getElementById('stockButtons').innerHTML = isMgr ? '<button class="btn-primary-solid btn-sm" onclick="openProductModal(null)">Add Product</button>' : '';
+      document.getElementById('stockActionsCol').textContent = isMgr ? 'Actions' : '';
+
+      document.getElementById('filterUser').innerHTML = '<option value="">All Staff</option>' + getUsers().map(u => '<option value="' + u.id + '">' + u.name + '</option>').join('');
+
+      updateUserChip();
+      goToPage('pos', document.querySelector('[data-page="pos"]'));
+      renderProducts();
+      renderStock();
+      renderMySales();
+
+      if (isMgr || isOwn) {
+        setupLiveDashboard();
+        setupFirebaseSync();
+      }
+
+      setupInstallPrompt();
+      setInterval(checkLowStockAndNotify, 30000);
+      setTimeout(checkLowStockAndNotify, 8000);
+    }
+
+    function updateUserChip() {
+      const avatar = document.getElementById('userAvatar');
+      const name = document.getElementById('userName');
+      const role = document.getElementById('userRole');
+      avatar.textContent = ROLE_ICONS[currentUser.role] || '👤';
+      avatar.style.background = ROLE_COLORS[currentUser.role] + '22';
+      avatar.style.color = ROLE_COLORS[currentUser.role];
+      name.textContent = currentUser.name;
+      role.textContent = currentUser.role.toUpperCase();
+    }
+
+    // ============================================
+    // FIREBASE SYNC
+    // ============================================
+    function setupFirebaseSync() {
+      if (window.listenToUsers) {
+        firebaseUsersListener = window.listenToUsers((users) => {
+          if (users && users.length > 0) {
+            const oldUsers = getUsers();
+            const oldOwner = oldUsers.find(u => u.role === 'owner');
+            const newOwner = users.find(u => u.role === 'owner');
+            setUsers(users);
+            if (oldOwner && newOwner && oldOwner.email !== newOwner.email) {
+              outOfStockAlerted.clear();
+              lastLowStockCheck = {};
+              console.log('🔄 Owner changed - Reset alert cooldowns');
+            }
+            if (document.getElementById('page-users').classList.contains('active')) renderUsers();
+            if (document.getElementById('page-live').classList.contains('active')) updateLiveDashboard();
+          }
+        });
+      }
+      if (window.listenToProducts) {
+        firebaseProductsListener = window.listenToProducts((products) => {
+          if (products && products.length > 0) {
+            const oldProducts = getProducts();
+            for (const newProduct of products) {
+              const oldProduct = oldProducts.find(p => p.id === newProduct.id);
+              if (oldProduct && oldProduct.remaining <= 0 && newProduct.remaining > 0) {
+                resetOutOfStockAlert(newProduct.id);
+              }
+            }
+            setProducts(products);
+            renderStock();
+            renderProducts();
+            if (document.getElementById('page-reports').classList.contains('active')) renderReports();
+          }
+        });
+      }
+    }
+
+    // ============================================
+    // NAVIGATION
+    // ============================================
+    function goToPage(id, el) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+      const page = document.getElementById('page-' + id);
+      if (page) page.classList.add('active');
+      if (el) el.classList.add('active');
+      if (id === 'allsales') renderAllSales();
+      if (id === 'users') renderUsers();
+      if (id === 'reports') renderReports();
+      if (id === 'stock') renderStock();
+      if (id === 'mysales') renderMySales();
+      if (id === 'live') updateLiveDashboard();
+      if (id === 'analytics') { setTimeout(renderAnalytics, 300); }
+    }
+
+    // ============================================
+    // PRODUCTS
+    // ============================================
+    function renderProducts() {
+      const query = (document.getElementById('productSearch').value || '').toLowerCase();
+      const list = getProducts().filter(p => p.remaining > 0 && p.name.toLowerCase().includes(query));
+      document.getElementById('productCount').textContent = list.length + ' items';
+      if (list.length === 0) {
+        document.getElementById('productList').innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-muted);font-size:14px;">No products in stock</div>';
+        return;
+      }
+      document.getElementById('productList').innerHTML = list.map(p => `
+        <div class="product-item" onclick="addToCart('${p.id}')">
+          <div><div class="product-name">${p.name}</div><div class="product-stock">${p.remaining} left</div></div>
+          <div class="product-price">${formatCurrency(p.sell)}</div>
+        </div>
+      `).join('');
+    }
+
+    function addToCart(productId) {
+      const p = getProducts().find(x => x.id === productId);
+      if (!p) return;
+      if (p.remaining <= 0) { showToast('This product is out of stock!', 'error'); renderProducts(); return; }
+      const ex = cart.find(c => c.pid === productId);
+      if (ex) {
+        if (ex.qty >= p.remaining) { showToast('Not enough stock!', 'error'); return; }
+        ex.qty++;
+      } else {
+        cart.push({ pid: productId, name: p.name, sell: p.sell, buy: p.buy, qty: 1 });
+      }
+      renderCart();
+    }
+
+    function changeQty(productId, delta) {
+      const ex = cart.find(c => c.pid === productId);
+      if (!ex) return;
+      const p = getProducts().find(x => x.id === productId);
+      if (!p) return;
+      if (delta > 0 && ex.qty + delta > p.remaining) { showToast('Not enough stock! Only ' + p.remaining + ' available.', 'error'); return; }
+      ex.qty += delta;
+      if (ex.qty <= 0) cart = cart.filter(c => c.pid !== productId);
+      renderCart();
+    }
+
+    function renderCart() {
+      const total = cart.reduce((s, c) => s + c.sell * c.qty, 0);
+      document.getElementById('cartSubtotal').textContent = formatCurrency(total);
+      document.getElementById('cartTotal').textContent = formatCurrency(total);
+      if (!cart.length) {
+        document.getElementById('cartItems').innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-muted);font-size:14px;">Tap a product to add</div>';
+        return;
+      }
+      document.getElementById('cartItems').innerHTML = cart.map(c => `
+        <div class="cart-item">
+          <div><div class="cart-item-name">${c.name}</div><div class="cart-item-sub">${formatCurrency(c.sell)} each</div></div>
+          <div class="qty-control">
+            <button class="qty-btn" onclick="changeQty('${c.pid}', -1)">−</button>
+            <span class="qty-number">${c.qty}</span>
+            <button class="qty-btn" onclick="changeQty('${c.pid}', 1)">+</button>
+          </div>
+          <div class="cart-total">${formatCurrency(c.sell * c.qty)}</div>
+        </div>
+      `).join('');
+    }
+
+    function selectPayment(el) {
+      paymentMethod = el.dataset.payment;
+      document.querySelectorAll('.payment-btn').forEach(b => b.classList.remove('active'));
+      el.classList.add('active');
+    }
+
+    function clearCart() { cart = []; renderCart(); }
+
+    // ============================================
+    // COMPLETE SALE
+    // ============================================
+    function completeSale() {
+      if (!cart.length) { showToast('Cart is empty.', 'error'); return; }
+      let products = getProducts();
+      for (const item of cart) {
+        const p = products.find(x => x.id === item.pid);
+        if (!p) { showToast('Product "' + item.name + '" no longer exists.', 'error'); return; }
+        if (p.remaining < item.qty) { showToast('Not enough stock for "' + item.name + '". Only ' + p.remaining + ' available.', 'error'); return; }
+      }
+      const total = cart.reduce((s, c) => s + c.sell * c.qty, 0);
+      const cost = cart.reduce((s, c) => s + c.buy * c.qty, 0);
+      const customer = document.getElementById('customerName').value.trim() || 'Walk-in';
+      const receiptId = 'RCP-' + Date.now().toString().slice(-7);
+
+      const sale = {
+        id: receiptId,
+        time: new Date().toISOString(),
+        userId: currentUser.id,
+        userName: currentUser.name,
+        userRole: currentUser.role,
+        customer,
+        payment: paymentMethod,
+        items: cart.map(c => ({ ...c })),
+        total,
+        cost,
+        margin: total - cost
+      };
+
+      if (window.saveSaleToFirebase) {
+        window.saveSaleToFirebase(sale).then((docId) => {
+          if (docId) {
+            const sales = getSales();
+            sales.push(sale);
+            setSales(sales);
+            let products = getProducts();
+            cart.forEach(c => {
+              const p = products.find(x => x.id === c.pid);
+              if (p) {
+                const oldRemaining = p.remaining;
+                p.remaining = Math.max(0, p.remaining - c.qty);
+                if (window.updateProductInFirebase) window.updateProductInFirebase(p.id, { remaining: p.remaining });
+                if (p.remaining === 0) resetOutOfStockAlert(p.id);
+              }
+            });
+            setProducts(products);
+            showReceipt(sale);
+            cart = [];
+            renderCart();
+            renderProducts();
+            renderStock();
+            document.getElementById('customerName').value = '';
+            showToast('Sale ' + receiptId + ' saved! Stock updated.', 'success');
+            if (document.getElementById('page-reports').classList.contains('active')) renderReports();
+            if (document.getElementById('page-allsales').classList.contains('active')) renderAllSales();
+            if (document.getElementById('page-live').classList.contains('active')) updateLiveDashboard();
+            if (document.getElementById('page-analytics').classList.contains('active')) renderAnalytics();
+            setTimeout(checkLowStockAndNotify, 1000);
+          } else { fallbackSaveSale(sale); }
+        });
+      } else { fallbackSaveSale(sale); }
+    }
+
+    function fallbackSaveSale(sale) {
+      let products = getProducts();
+      cart.forEach(c => {
+        const p = products.find(x => x.id === c.pid);
+        if (p) { p.remaining = Math.max(0, p.remaining - c.qty); if (p.remaining === 0) resetOutOfStockAlert(p.id); }
+      });
+      setProducts(products);
+      const sales = getSales();
+      sales.push(sale);
+      setSales(sales);
+      showReceipt(sale);
+      cart = [];
+      renderCart();
+      renderProducts();
+      renderStock();
+      document.getElementById('customerName').value = '';
+      showToast('Sale saved locally. Stock updated!', 'info');
+      if (document.getElementById('page-reports').classList.contains('active')) renderReports();
+      if (document.getElementById('page-allsales').classList.contains('active')) renderAllSales();
+      if (document.getElementById('page-live').classList.contains('active')) updateLiveDashboard();
+      if (document.getElementById('page-analytics').classList.contains('active')) renderAnalytics();
+      setTimeout(checkLowStockAndNotify, 1000);
+    }
+
+    // ============================================
+    // RECEIPT
+    // ============================================
+    function showReceipt(sale) {
+      const dt = new Date(sale.time).toLocaleString('en-KE', { dateStyle: 'medium', timeStyle: 'short' });
+      const html = `
+    FarmersChoice Agrovet
+    Nairobi, Kenya
+    ────────────────────────
+    Receipt #: ${sale.id}
+    Date:      ${dt}
+    Cashier:   ${sale.userName}
+    Customer:  ${sale.customer}
+    ────────────────────────
+    ${sale.items.map(i => i.name + '\n  ' + i.qty + ' × ' + formatCurrency(i.sell) + ' = ' + formatCurrency(i.sell * i.qty)).join('\n')}
+    ────────────────────────
+    TOTAL:     ${formatCurrency(sale.total)}
+    ────────────────────────
+    Payment:   ${sale.payment}
+    Thank you! · Powered by FarmersChoice Agrovet
+    `;
+      document.getElementById('receiptContent').textContent = html;
+      document.getElementById('receiptModal').classList.add('open');
+    }
+
+    function printReceipt() {
+      const content = document.getElementById('receiptContent').textContent;
+      const w = window.open('', '_blank');
+      w.document.write('<pre style="font-family:monospace;font-size:13px;padding:16px;white-space:pre-wrap;word-break:break-all;">' + content + '</pre>');
+      w.document.close(); w.print(); w.close();
+    }
+
+    function downloadReceipt() {
+      const content = document.getElementById('receiptContent').textContent;
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const id = document.getElementById('receiptContent').textContent.match(/Receipt #: (RCP-\d+)/)?.[1] || 'receipt';
+      a.download = 'FarmersChoice_' + id + '.txt';
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Receipt downloaded.', 'info');
+    }
+
+    // ============================================
+    // STOCK
+    // ============================================
+    function renderStock() {
+      const query = (document.getElementById('stockSearch').value || '').toLowerCase();
+      const isMgr = currentUser.role === 'manager' || currentUser.role === 'owner';
+      document.getElementById('stockBody').innerHTML = getProducts()
+        .filter(p => p.name.toLowerCase().includes(query))
+        .map(p => {
+          const status = p.remaining <= 0 ? 'out' : p.remaining < 2 ? 'low' : 'ok';
+          const statusClass = { ok: 'pill-green', low: 'pill-yellow', out: 'pill-red' } [status];
+          const statusText = { ok: 'OK', low: 'Low', out: 'Out' } [status];
+          return `<tr>
+            <td style="font-family:var(--font-mono);color:var(--text-muted);font-size:11px;">${p.id}</td>
+            <td><strong>${p.name}</strong></td>
+            <td class="mono">${formatCurrency(p.buy)}</td>
+            <td class="mono">${formatCurrency(p.sell)}</td>
+            <td class="mono" style="color:var(--green);">+${formatCurrency(p.sell - p.buy)}</td>
+            <td class="mono">${p.added}</td>
+            <td class="mono">${p.remaining}</td>
+            <td><span class="pill ${statusClass}">${statusText}</span></td>
+            <td>${isMgr ? `<div style="display:flex;gap:4px;flex-wrap:wrap;">
+              <button class="btn-ghost btn-sm" onclick="openRestock('${p.id}')">Restock</button>
+              <button class="btn-ghost btn-sm" onclick="openProductModal('${p.id}')">Edit</button>
+              <button class="btn-danger btn-sm" onclick="deleteProduct('${p.id}')">Delete</button>
+            </div>` : ''}</td>
+          </tr>`;
+        }).join('');
+    }
+
+    let editProductId = null;
+    function openProductModal(productId) {
+      editProductId = productId || null;
+      if (productId) {
+        const p = getProducts().find(x => x.id === productId);
+        document.getElementById('productModalTitle').textContent = 'Edit Product';
+        document.getElementById('productNameInput').value = p.name;
+        document.getElementById('productBuyInput').value = p.buy;
+        document.getElementById('productSellInput').value = p.sell;
+        document.getElementById('productAddedInput').value = p.added;
+        document.getElementById('productRemInput').value = p.remaining;
+      } else {
+        document.getElementById('productModalTitle').textContent = 'Add Product';
+        ['productNameInput', 'productBuyInput', 'productSellInput', 'productAddedInput', 'productRemInput'].forEach(id => document.getElementById(id).value = '');
+      }
+      document.getElementById('productModal').classList.add('open');
+    }
+
+    function saveProduct() {
+      const name = document.getElementById('productNameInput').value.trim();
+      const buy = Math.round(parseFloat(document.getElementById('productBuyInput').value));
+      const sell = Math.round(parseFloat(document.getElementById('productSellInput').value));
+      const added = Math.round(parseFloat(document.getElementById('productAddedInput').value));
+      const rem = Math.round(parseFloat(document.getElementById('productRemInput').value));
+      if (!name || isNaN(buy) || isNaN(sell) || isNaN(added) || isNaN(rem)) { showToast('Please fill all fields.', 'error'); return; }
+      let products = getProducts();
+      if (editProductId) {
+        const i = products.findIndex(x => x.id === editProductId);
+        if (products[i].remaining <= 0 && rem > 0) resetOutOfStockAlert(editProductId);
+        products[i] = { ...products[i], name, buy, sell, added, remaining: rem };
+        showToast(name + ' updated.', 'success');
+      } else {
+        products.push({ id: 'p' + Date.now(), name, buy, sell, added, remaining: rem });
+        showToast(name + ' added.', 'info');
+      }
+      setProducts(products);
+      if (window.syncProductsToFirebase) window.syncProductsToFirebase(products);
+      closeModal('productModal');
+      renderStock(); renderProducts();
+      setTimeout(checkLowStockAndNotify, 1000);
+    }
+
+    function deleteProduct(id) {
+      if (!confirm('Delete this product?')) return;
+      resetOutOfStockAlert(id);
+      let products = getProducts().filter(p => p.id !== id);
+      setProducts(products);
+      if (window.syncProductsToFirebase) window.syncProductsToFirebase(products);
+      renderStock(); renderProducts();
+      showToast('Product deleted.', 'error');
+    }
+
+    let restockId = null;
+    function openRestock(id) {
+      const p = getProducts().find(x => x.id === id);
+      restockId = id;
+      document.getElementById('restockProductName').textContent = p.name;
+      document.getElementById('restockCurrent').textContent = p.remaining + ' units';
+      document.getElementById('restockBuyPrice').textContent = formatCurrency(p.buy);
+      document.getElementById('restockQty').value = '';
+      document.getElementById('restockModal').classList.add('open');
+    }
+
+    function confirmRestock() {
+      const qty = Math.round(parseFloat(document.getElementById('restockQty').value));
+      if (isNaN(qty) || qty <= 0) { showToast('Enter valid quantity.', 'error'); return; }
+      let products = getProducts();
+      const i = products.findIndex(x => x.id === restockId);
+      if (products[i].remaining <= 0 && products[i].remaining + qty > 0) resetOutOfStockAlert(restockId);
+      products[i].remaining += qty;
+      products[i].added += qty;
+      setProducts(products);
+      if (window.updateProductInFirebase) window.updateProductInFirebase(restockId, { remaining: products[i].remaining, added: products[i].added });
+      closeModal('restockModal');
+      renderStock(); renderProducts();
+      showToast('Added ' + qty + ' units.', 'success');
+      setTimeout(checkLowStockAndNotify, 1000);
+    }
+
+    // ============================================
+    // MY SALES
+    // ============================================
+    function renderMySales() {
+      const sales = getSales().filter(s => s.userId === currentUser.id).reverse();
+      const total = sales.reduce((s, x) => s + x.total, 0);
+      const margin = sales.reduce((s, x) => s + x.margin, 0);
+      document.getElementById('myStats').innerHTML = createStats([
+        ['My Transactions', sales.length, 'var(--accent)'],
+        ['Total Revenue', formatCurrency(total), 'var(--green)'],
+        ['Gross Margin', formatCurrency(margin), 'var(--accent)'],
+        ['Avg Sale', formatCurrency(sales.length ? total / sales.length : 0), 'var(--text)']
+      ]);
+      document.getElementById('mySalesBody').innerHTML = buildSalesRows(sales, false);
+    }
+
+    // ============================================
+    // ALL SALES
+    // ============================================
+    function renderAllSales() {
+      let sales = getSales().reverse();
+      const userFilter = document.getElementById('filterUser').value;
+      const paymentFilter = document.getElementById('filterPayment').value;
+      if (userFilter) sales = sales.filter(s => s.userId === userFilter);
+      if (paymentFilter) sales = sales.filter(s => s.payment === paymentFilter);
+      const total = sales.reduce((s, x) => s + x.total, 0);
+      const margin = sales.reduce((s, x) => s + x.margin, 0);
+      document.getElementById('allStats').innerHTML = createStats([
+        ['Transactions', sales.length, 'var(--accent)'],
+        ['Total Revenue', formatCurrency(total), 'var(--green)'],
+        ['Gross Margin', formatCurrency(margin), 'var(--accent)'],
+        ['Avg Sale', formatCurrency(sales.length ? total / sales.length : 0), 'var(--text)']
+      ]);
+      document.getElementById('allSalesBody').innerHTML = buildSalesRows(sales, true);
+    }
+
+    function buildSalesRows(sales, showStaff) {
+      if (!sales.length) return '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:20px;font-size:14px;">No sales yet. Start selling!</td></tr>';
+      return sales.map(s => `
+        <tr>
+          <td class="mono" style="font-size:12px;">${s.id}</td>
+          <td style="font-size:12px;">${new Date(s.time).toLocaleString('en-KE', { dateStyle: 'short', timeStyle: 'short' })}</td>
+          ${showStaff ? `<td><span class="pill ${getRolePillClass(s.userRole)}">${s.userName}</span></td>` : ''}
+          <td>${s.customer || 'Walk-in'}</td>
+          <td class="mono">${s.items ? s.items.length : 0}</td>
+          <td class="mono" style="color:var(--green);">${formatCurrency(s.total)}</td>
+          <td><span class="pill ${getPaymentPillClass(s.payment)}">${s.payment}</span></td>
+          <td><button class="btn-ghost btn-sm" onclick='showReceipt(${JSON.stringify(s)})'>View</button></td>
+        </tr>
+      `).join('');
+    }
+
+    // ============================================
+    // USERS
+    // ============================================
+    let editUserId = null;
+    function renderUsers() {
+      const sales = getSales();
+      const isOwn = currentUser.role === 'owner';
+      document.getElementById('usersBody').innerHTML = getUsers().map(u => {
+        const us = sales.filter(s => s.userId === u.id);
+        const ut = us.reduce((s, x) => s + x.total, 0);
+        const canDelete = isOwn && u.id !== currentUser.id;
+        return `<tr>
+          <td><strong>${u.name}</strong></td>
+          <td><span class="pill ${getRolePillClass(u.role)}">${u.role}</span>${isOwn && u.id !== currentUser.id ? `<button class="btn-ghost btn-sm" style="padding:2px 6px;font-size:10px;" onclick="openRoleModal('${u.id}')">Change Role</button>` : ''}</td>
+          <td style="font-size:12px;color:var(--text-muted);">${u.email || '-'}</td>
+          <td class="mono">${us.length}</td>
+          <td class="mono" style="color:var(--green);">${formatCurrency(ut)}</td>
+          <td><span class="pill ${u.active ? 'pill-green' : 'pill-red'}">${u.active ? 'Active' : 'Inactive'}</span></td>
+          <td><div style="display:flex;gap:4px;flex-wrap:wrap;"><button class="btn-ghost btn-sm" onclick="openUserModal('${u.id}')">Edit</button>${canDelete ? `<button class="btn-danger btn-sm" onclick="deleteUser('${u.id}')">Delete</button>` : ''}</div></td>
+        </tr>`;
+      }).join('');
+    }
+
+    async function deleteUser(userId) {
+      const user = getUsers().find(u => u.id === userId);
+      if (!user) return;
+      if (!confirm('Are you sure you want to delete user "' + user.name + '"?\n\nThis action CANNOT be undone!')) return;
+      try {
+        if (window.deleteUserFromFirebase) await window.deleteUserFromFirebase(userId);
+        let users = getUsers().filter(u => u.id !== userId);
+        setUsers(users);
+        renderUsers();
+        showToast('User "' + user.name + '" has been deleted!', 'success');
+      } catch (error) { showToast('Failed to delete user: ' + error.message, 'error'); }
+    }
+
+    function openUserModal(userId) {
+      editUserId = userId || null;
+      if (userId) {
+        const u = getUsers().find(x => x.id === userId);
+        document.getElementById('userModalTitle').textContent = 'Edit User';
+        document.getElementById('userNameInput').value = u.name;
+        document.getElementById('userRoleInput').value = u.role;
+        document.getElementById('userEmailInput').value = u.email || '';
+      } else {
+        document.getElementById('userModalTitle').textContent = 'Add User';
+        ['userNameInput', 'userEmailInput'].forEach(id => document.getElementById(id).value = '');
+        document.getElementById('userRoleInput').value = 'employee';
+      }
+      document.getElementById('userModal').classList.add('open');
+    }
+
+    function saveUser() {
+      const name = document.getElementById('userNameInput').value.trim();
+      const role = document.getElementById('userRoleInput').value;
+      const email = document.getElementById('userEmailInput').value.trim();
+      if (!name) { showToast('Enter a name.', 'error'); return; }
+      if (!email || !email.includes('@')) { showToast('Enter a valid email.', 'error'); return; }
+      let users = getUsers();
+      if (editUserId) {
+        const i = users.findIndex(x => x.id === editUserId);
+        users[i] = { ...users[i], name, role, email };
+        showToast(name + ' updated.', 'success');
+      } else {
+        if (users.find(u => u.email === email)) { showToast('Email already exists.', 'error'); return; }
+        users.push({ id: 'u' + Date.now(), name, role, email, active: true, setup: true });
+        showToast(name + ' added.', 'info');
+      }
+      setUsers(users);
+      if (window.syncUsersToFirebase) window.syncUsersToFirebase(users);
+      closeModal('userModal');
+      renderUsers();
+    }
+
+    // ============================================
+    // ROLE CHANGE
+    // ============================================
+    function openRoleModal(userId) {
+      const user = getUsers().find(u => u.id === userId);
+      if (!user) return;
+      roleChangeTargetId = userId;
+      document.getElementById('roleUserName').value = user.name;
+      document.getElementById('roleNewRole').value = user.role;
+      document.getElementById('roleModal').classList.add('open');
+    }
+
+    function saveRoleChange() {
+      const newRole = document.getElementById('roleNewRole').value;
+      if (!roleChangeTargetId) return;
+      let users = getUsers();
+      const i = users.findIndex(u => u.id === roleChangeTargetId);
+      if (i === -1) return;
+      const oldRole = users[i].role;
+      users[i].role = newRole;
+      setUsers(users);
+      if (window.syncUsersToFirebase) window.syncUsersToFirebase(users);
+      closeModal('roleModal');
+      renderUsers();
+      if (roleChangeTargetId === currentUser.id) {
+        currentUser = users[i];
+        updateUserChip();
+        showToast('Your role was changed. Refreshing permissions...', 'info');
+        setTimeout(launchApp, 1000);
+      } else {
+        showToast(users[i].name + ' role changed from ' + oldRole + ' to ' + newRole + '!', 'success');
+      }
+    }
+
+    // ============================================
+    // REPORTS
+    // ============================================
+    function renderReports() {
+      let sales = getSales();
+      if (firebaseSalesData && firebaseSalesData.length > 0) {
+        const localIds = new Set(sales.map(s => s.id));
+        const firebaseNew = firebaseSalesData.filter(s => !localIds.has(s.id));
+        sales = [...sales, ...firebaseNew];
+      }
+      const total = sales.reduce((s, x) => s + x.total, 0);
+      const cost = sales.reduce((s, x) => s + x.cost, 0);
+      const stockValue = getProducts().reduce((s, p) => s + p.buy * p.remaining, 0);
+
+      document.getElementById('reportStats').innerHTML = createStats([
+        ['All-time Revenue', formatCurrency(total), 'var(--green)'],
+        ['Total COGS', formatCurrency(cost), 'var(--red)'],
+        ['Gross Profit', formatCurrency(total - cost), 'var(--accent)'],
+        ['Stock Value', formatCurrency(stockValue), 'var(--text)']
+      ]);
+
+      const productMap = {};
+      sales.forEach(s => { if (s.items) { s.items.forEach(i => { if (!productMap[i.name]) productMap[i.name] = { qty: 0, rev: 0 }; productMap[i.name].qty += i.qty; productMap[i.name].rev += i.sell * i.qty; }); } });
+      const topProducts = Object.entries(productMap).sort((a, b) => b[1].rev - a[1].rev).slice(0, 8);
+      const maxRev = topProducts[0] ? topProducts[0][1].rev : 1;
+      document.getElementById('topProducts').innerHTML = topProducts.length ? topProducts.map(([name, data]) => `
+        <div style="margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px;">
+            <span>${name}</span>
+            <span class="mono" style="color:var(--accent);">${formatCurrency(data.rev)} (${data.qty} units)</span>
+          </div>
+          <div style="background:var(--border-color);border-radius:3px;height:4px;">
+            <div style="background:var(--accent);height:4px;border-radius:3px;width:${(data.rev / maxRev * 100).toFixed(0)}%;"></div>
+          </div>
+        </div>
+      `).join('') : '<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:16px;">No sales data yet.</div>';
+
+      const staffMap = {};
+      sales.forEach(s => {
+        if (!staffMap[s.userId]) staffMap[s.userId] = { name: s.userName, role: s.userRole, rev: 0, count: 0 };
+        staffMap[s.userId].rev += s.total;
+        staffMap[s.userId].count += 1;
+      });
+      const staffList = Object.values(staffMap).sort((a, b) => b.rev - a.rev);
+      const maxStaffRev = staffList[0] ? staffList[0].rev : 1;
+      document.getElementById('staffPerformance').innerHTML = staffList.length ? staffList.map(d => `
+        <div style="margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px;">
+            <span>${d.name} <span class="pill ${getRolePillClass(d.role)}" style="font-size:9px;">${d.role}</span>
+            <span style="color:var(--text-muted);font-size:11px;">${d.count} sales</span></span>
+            <span class="mono" style="color:var(--green);">${formatCurrency(d.rev)}</span>
+          </div>
+          <div style="background:var(--border-color);border-radius:3px;height:4px;">
+            <div style="background:var(--green);height:4px;border-radius:3px;width:${(d.rev / maxStaffRev * 100).toFixed(0)}%;"></div>
+          </div>
+        </div>
+      `).join('') : '<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:16px;">No staff sales data yet.</div>';
+
+      const paymentMap = { Cash: 0, 'M-Pesa': 0, Bank: 0, Credit: 0 };
+      sales.forEach(s => { if (paymentMap[s.payment] !== undefined) paymentMap[s.payment] += s.total; });
+      const paymentIcons = { Cash: '💵', 'M-Pesa': '📱', Bank: '🏦', Credit: '📒' };
+      document.getElementById('paymentBreakdown').innerHTML = Object.entries(paymentMap).map(([key, value]) => `
+        <div class="stat-card">
+          <div class="stat-label">${paymentIcons[key]} ${key}</div>
+          <div class="stat-value" style="font-size:16px;">${formatCurrency(value)}</div>
+        </div>
+      `).join('');
+    }
+
+    // ============================================
+    // LIVE DASHBOARD
+    // ============================================
+    let selectedEmployeeId = 'all';
+    let liveSalesData = [];
+
+    function setupLiveDashboard() {
+      if (liveSalesListener) { liveSalesListener(); liveSalesListener = null; }
+      if (window.listenToAllSales) {
+        liveSalesListener = window.listenToAllSales((sales) => {
+          firebaseSalesData = sales;
+          liveSalesData = sales;
+          updateLiveDashboard(sales);
+          if (document.getElementById('page-reports').classList.contains('active')) renderReports();
+          if (document.getElementById('page-allsales').classList.contains('active')) renderAllSales();
+          if (document.getElementById('page-analytics').classList.contains('active')) renderAnalytics();
+        });
+      } else {
+        const checkFirebase = setInterval(() => {
+          if (window.listenToAllSales) {
+            clearInterval(checkFirebase);
+            liveSalesListener = window.listenToAllSales((sales) => {
+              firebaseSalesData = sales;
+              liveSalesData = sales;
+              updateLiveDashboard(sales);
+              if (document.getElementById('page-reports').classList.contains('active')) renderReports();
+              if (document.getElementById('page-allsales').classList.contains('active')) renderAllSales();
+              if (document.getElementById('page-analytics').classList.contains('active')) renderAnalytics();
+            });
+          }
+        }, 1000);
+      }
+    }
+
+    function updateLiveDashboard(sales) {
+      if (!sales || sales.length === 0) sales = getSales();
+      if (!sales || sales.length === 0) {
+        document.getElementById('todaySales').textContent = 'KSh 0';
+        document.getElementById('liveSaleCount').textContent = '0';
+        document.getElementById('onlineCount').textContent = getUsers().filter(u => u.active).length;
+        document.getElementById('liveStats').innerHTML = createStats([
+          ['Today\'s Revenue', 'KSh 0', 'var(--green)'],
+          ['Total Revenue', 'KSh 0', 'var(--accent)'],
+          ['Total Sales', '0', 'var(--text)'],
+          ['Avg Sale', 'KSh 0', 'var(--blue)']
+        ]);
+        updateEmployeeStatus();
+        document.getElementById('liveFeed').innerHTML = '<div style="color:var(--text-muted);text-align:center;padding:20px;font-size:14px;">No sales yet. Waiting for first sale...</div>';
+        return;
+      }
+      liveSalesData = sales;
+      const filtered = selectedEmployeeId === 'all' ? sales : sales.filter(s => s.userId === selectedEmployeeId);
+      updateEmployeeStatus();
+      updateLiveDashboardFiltered(filtered, selectedEmployeeId);
+    }
+
+    function updateLiveDashboardFiltered(filteredSales, userId) {
+      const today = new Date(); today.setHours(0,0,0,0);
+      const todaySales = filteredSales.filter(s => new Date(s.time) >= today);
+      const totalToday = todaySales.reduce((sum, s) => sum + (s.total || 0), 0);
+      const totalAll = filteredSales.reduce((sum, s) => sum + (s.total || 0), 0);
+      const avgSale = filteredSales.length > 0 ? totalAll / filteredSales.length : 0;
+      let employeeName = 'All Employees';
+      if (userId !== 'all') { const user = getUsers().find(u => u.id === userId); if (user) employeeName = user.name; }
+      document.getElementById('filterLabel').textContent = 'Showing: ' + employeeName;
+      document.getElementById('todaySales').textContent = formatCurrency(totalToday);
+      document.getElementById('liveSaleCount').textContent = filteredSales.length;
+      document.getElementById('onlineCount').textContent = getUsers().filter(u => u.active).length;
+      document.getElementById('liveStats').innerHTML = createStats([
+        ['Today\'s Revenue', formatCurrency(totalToday), 'var(--green)'],
+        ['Total Revenue', formatCurrency(totalAll), 'var(--accent)'],
+        ['Total Sales', filteredSales.length, 'var(--text)'],
+        ['Avg Sale', formatCurrency(avgSale), 'var(--blue)']
+      ]);
+      updateLiveFeed(filteredSales);
+    }
+
+    function updateEmployeeStatus() {
+      const users = getUsers();
+      const container = document.getElementById('employeeStatus');
+      if (!container) return;
+      const allSales = liveSalesData || getSales();
+      container.innerHTML = users.map(u => {
+        const userSales = allSales.filter(s => s.userId === u.id);
+        const isActive = selectedEmployeeId === u.id;
+        return `<div class="employee-card ${isActive ? 'active' : ''}" onclick="filterEmployee('${u.id}')" data-user="${u.id}">
+          <span class="status-dot ${u.active ? 'online' : 'offline'}"></span>
+          <div><div class="emp-name">${u.name}</div><div class="emp-role">${u.role} · ${u.active ? 'Online' : 'Offline'}</div></div>
+          <div class="emp-badge">${userSales.length}</div>
+        </div>`;
+      }).join('');
+      const allBtn = document.getElementById('filterAllBtn');
+      if (allBtn) {
+        if (selectedEmployeeId === 'all') { allBtn.style.borderColor = 'var(--accent)'; allBtn.style.background = 'var(--accent)'; allBtn.style.color = '#fff'; }
+        else { allBtn.style.borderColor = 'var(--border-color)'; allBtn.style.background = 'var(--bg-card)'; allBtn.style.color = 'var(--text-primary)'; }
+      }
+    }
+
+    function filterEmployee(userId) {
+      selectedEmployeeId = userId;
+      updateEmployeeStatus();
+      const allSales = liveSalesData || getSales();
+      const filtered = userId === 'all' ? allSales : allSales.filter(s => s.userId === userId);
+      updateLiveDashboardFiltered(filtered, userId);
+    }
+
+    function updateLiveFeed(sales) {
+      const feed = document.getElementById('liveFeed');
+      if (!feed) return;
+      const recent = sales.slice(0, 20);
+      if (recent.length === 0) {
+        const empName = selectedEmployeeId === 'all' ? '' : (getUsers().find(u => u.id === selectedEmployeeId)?.name || '');
+        feed.innerHTML = '<div style="color:var(--text-muted);text-align:center;padding:20px;font-size:14px;">No sales yet for ' + (empName || 'any employee') + '.</div>';
+        return;
+      }
+      feed.innerHTML = recent.map(s => `
+        <div style="padding:10px 14px;border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:center;font-size:13px;background: ${s.userId === currentUser?.id ? 'rgba(46,204,113,0.05)' : 'transparent'};border-left: 3px solid ${s.userId === currentUser?.id ? 'var(--green)' : 'var(--accent)'};margin-bottom:3px;gap:8px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:120px;">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <span style="font-weight:600;font-size:14px;">${s.userName || 'Unknown'}</span>
+              <span style="color:var(--text-muted);font-size:12px;">${s.customer || 'Walk-in'}</span>
+              <span class="pill ${getPaymentPillClass(s.payment)}" style="font-size:10px;">${s.payment || 'Cash'}</span>
+            </div>
+            <div style="font-size:11px;color:var(--text-muted);">${s.items ? s.items.length : 0} items · ${s.time ? new Date(s.time).toLocaleTimeString() : 'Just now'}</div>
+          </div>
+          <div style="font-weight:600;color:var(--green);font-family:var(--font-mono);font-size:15px;">${formatCurrency(s.total || 0)}</div>
+        </div>
+      `).join('');
+    }
+
+    // ============================================
+    // ANALYTICS
+    // ============================================
+    let salesTrendChartInstance = null;
+    let revenueBreakdownChartInstance = null;
+
+    function renderAnalytics() {
+      const days = parseInt(document.getElementById('analyticsPeriod').value);
+      const sales = getSalesForPeriod(days);
+      if (sales.length === 0) {
+        document.getElementById('analyticsStats').innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-muted);padding:40px;font-size:16px;">No sales data available for this period.<br><span style="font-size:14px;">Start making sales to see analytics!</span></div>';
+        return;
+      }
+      renderAnalyticsStats(sales);
+      renderSalesTrendChart(sales);
+      renderRevenueBreakdownChart(sales);
+      renderPeakHours(sales);
+      renderTopProductsAnalytics(sales);
+      renderEmployeePerformanceAnalytics(sales);
+      renderWeekOverWeek(sales);
+    }
+
+    function getSalesForPeriod(days) {
+      const allSales = getSales();
+      const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - days);
+      let sales = [...allSales];
+      if (firebaseSalesData && firebaseSalesData.length > 0) {
+        const localIds = new Set(sales.map(s => s.id));
+        const firebaseNew = firebaseSalesData.filter(s => !localIds.has(s.id));
+        sales = [...sales, ...firebaseNew];
+      }
+      return sales.filter(s => new Date(s.time) >= cutoff);
+    }
+
+    function renderAnalyticsStats(sales) {
+      const total = sales.reduce((sum, s) => sum + s.total, 0);
+      const count = sales.length;
+      const avg = count > 0 ? total / count : 0;
+      const days = parseInt(document.getElementById('analyticsPeriod').value);
+      const prevSales = getSalesForPeriod(days);
+      const prevTotal = prevSales.reduce((sum, s) => sum + s.total, 0);
+      const growth = prevTotal > 0 ? ((total - prevTotal) / prevTotal * 100) : 0;
+      document.getElementById('analyticsStats').innerHTML = createStats([
+        ['Total Revenue', formatCurrency(total), 'var(--green)'],
+        ['Total Sales', count, 'var(--accent)'],
+        ['Average Sale', formatCurrency(avg), 'var(--blue)'],
+        ['Growth', (growth >= 0 ? '↑' : '↓') + ' ' + Math.abs(growth).toFixed(1) + '%', growth >= 0 ? 'var(--green)' : 'var(--red)']
+      ]);
+    }
+
+    function renderSalesTrendChart(sales) {
+      const ctx = document.getElementById('salesTrendChart').getContext('2d');
+      const dateMap = {};
+      sales.forEach(s => { const date = new Date(s.time).toLocaleDateString(); if (!dateMap[date]) dateMap[date] = 0; dateMap[date] += s.total; });
+      const dates = Object.keys(dateMap).sort();
+      const values = dates.map(d => dateMap[d]);
+      if (salesTrendChartInstance) salesTrendChartInstance.destroy();
+      const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+      const gridColor = isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.06)';
+      const labelColor = isLight ? '#3d4454' : '#a0aab8';
+      salesTrendChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: { labels: dates, datasets: [{ label: 'Daily Revenue', data: values, borderColor: '#2e7d32', backgroundColor: 'rgba(46,125,50,0.1)', fill: true, tension: 0.4, pointBackgroundColor: '#2e7d32', pointRadius: 3 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(context) { return 'KSh ' + context.parsed.y.toLocaleString(); } } } }, scales: { y: { beginAtZero: true, grid: { color: gridColor }, ticks: { callback: function(value) { return 'KSh ' + value.toLocaleString(); }, color: labelColor } }, x: { grid: { color: gridColor }, ticks: { maxRotation: 45, font: { size: 9 }, color: labelColor } } } }
+      });
+    }
+
+    function renderRevenueBreakdownChart(sales) {
+      const ctx = document.getElementById('revenueBreakdownChart').getContext('2d');
+      const payMap = { Cash: 0, 'M-Pesa': 0, Bank: 0, Credit: 0 };
+      sales.forEach(s => { if (payMap[s.payment] !== undefined) payMap[s.payment] += s.total; });
+      const labels = Object.keys(payMap);
+      const values = Object.values(payMap);
+      const colors = ['#2ecc71', '#3498db', '#9b59b6', '#f39c12'];
+      if (revenueBreakdownChartInstance) revenueBreakdownChartInstance.destroy();
+      const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+      const labelColor = isLight ? '#3d4454' : '#e8ecf4';
+      revenueBreakdownChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor: isLight ? '#ffffff' : '#1e2330' }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: labelColor, font: { size: 10 } } }, tooltip: { callbacks: { label: function(context) { const total = context.dataset.data.reduce((a, b) => a + b, 0); const percentage = ((context.parsed / total) * 100).toFixed(1); return context.label + ': KSh ' + context.parsed.toLocaleString() + ' (' + percentage + '%)'; } } } } }
+      });
+    }
+
+    function renderPeakHours(sales) {
+      const hourMap = {};
+      for (let i = 0; i < 24; i++) hourMap[i] = 0;
+      sales.forEach(s => { const hour = new Date(s.time).getHours(); hourMap[hour] += s.total; });
+      const sorted = Object.entries(hourMap).sort((a, b) => b[1] - a[1]);
+      const top3 = sorted.slice(0, 3);
+      const total = sorted.reduce((sum, [h, v]) => sum + v, 0);
+      let html = '';
+      if (top3.every(([h, v]) => v === 0)) { html = '<div style="color:var(--text-muted);text-align:center;padding:20px;">Not enough data to determine peak hours.</div>'; }
+      else {
+        html = top3.map(([hour, amount]) => {
+          const hourStr = hour >= 12 ? (hour - 12 || 12) + ' PM' : (hour || 12) + ' AM';
+          const percentage = total > 0 ? ((amount / total) * 100).toFixed(1) : 0;
+          return `<div style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;font-size:14px;margin-bottom:4px;"><span>${hourStr}</span><span class="mono" style="color:var(--accent);">${formatCurrency(amount)}</span></div><div style="background:var(--border-color);border-radius:4px;height:6px;"><div style="background:var(--accent);height:6px;border-radius:4px;width:${percentage}%;"></div></div></div>`;
+        }).join('');
+      }
+      document.getElementById('peakHours').innerHTML = html;
+    }
+
+    function renderTopProductsAnalytics(sales) {
+      const productMap = {};
+      sales.forEach(s => { if (s.items) { s.items.forEach(i => { if (!productMap[i.name]) productMap[i.name] = { qty: 0, rev: 0 }; productMap[i.name].qty += i.qty; productMap[i.name].rev += i.sell * i.qty; }); } });
+      const sorted = Object.entries(productMap).sort((a, b) => b[1].rev - a[1].rev);
+      const top5 = sorted.slice(0, 5);
+      if (top5.length === 0) { document.getElementById('topProductsAnalytics').innerHTML = '<div style="color:var(--text-muted);text-align:center;padding:20px;">No products sold yet.</div>'; return; }
+      const maxRev = top5[0][1].rev;
+      document.getElementById('topProductsAnalytics').innerHTML = top5.map(([name, data]) => {
+        const percentage = maxRev > 0 ? ((data.rev / maxRev) * 100).toFixed(0) : 0;
+        return `<div style="margin-bottom:8px;"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:2px;"><span>${name}</span><span class="mono" style="color:var(--green);">${formatCurrency(data.rev)} (${data.qty} units)</span></div><div style="background:var(--border-color);border-radius:4px;height:4px;"><div style="background:var(--green);height:4px;border-radius:4px;width:${percentage}%;"></div></div></div>`;
+      }).join('');
+    }
+
+    function renderEmployeePerformanceAnalytics(sales) {
+      const empMap = {};
+      sales.forEach(s => {
+        if (!empMap[s.userId]) empMap[s.userId] = { name: s.userName, role: s.userRole, rev: 0, count: 0 };
+        empMap[s.userId].rev += s.total; empMap[s.userId].count += 1;
+      });
+      const sorted = Object.values(empMap).sort((a, b) => b.rev - a.rev);
+      if (sorted.length === 0) { document.getElementById('employeePerformance').innerHTML = '<div style="color:var(--text-muted);text-align:center;padding:20px;">No employee sales data yet.</div>'; return; }
+      const maxRev = sorted[0].rev;
+      document.getElementById('employeePerformance').innerHTML = sorted.map(emp => {
+        const percentage = maxRev > 0 ? ((emp.rev / maxRev) * 100).toFixed(0) : 0;
+        return `<div style="margin-bottom:8px;"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:2px;"><span>${emp.name} <span class="pill ${getRolePillClass(emp.role)}" style="font-size:9px;">${emp.role}</span></span><span style="display:flex;gap:10px;align-items:center;"><span style="color:var(--text-muted);font-size:11px;">${emp.count} sales</span><span class="mono" style="color:var(--green);">${formatCurrency(emp.rev)}</span></span></div><div style="background:var(--border-color);border-radius:4px;height:4px;"><div style="background:var(--blue);height:4px;border-radius:4px;width:${percentage}%;"></div></div></div>`;
+      }).join('');
+    }
+
+    function renderWeekOverWeek(sales) {
+      const days = parseInt(document.getElementById('analyticsPeriod').value);
+      const weekMap = {};
+      sales.forEach(s => {
+        const date = new Date(s.time);
+        const weekStart = new Date(date);
+        weekStart.setDate(date.getDate() - date.getDay());
+        const key = weekStart.toLocaleDateString();
+        if (!weekMap[key]) weekMap[key] = 0;
+        weekMap[key] += s.total;
+      });
+      const weeks = Object.entries(weekMap).sort();
+      const currentWeek = weeks.length > 0 ? weeks[weeks.length - 1] : null;
+      const previousWeek = weeks.length > 1 ? weeks[weeks.length - 2] : null;
+      let html = '';
+      if (!currentWeek) { html = '<div style="color:var(--text-muted);text-align:center;padding:20px;">Not enough data for week-over-week comparison.</div>'; }
+      else {
+        const currentTotal = currentWeek[1];
+        const prevTotal = previousWeek ? previousWeek[1] : 0;
+        const change = prevTotal > 0 ? ((currentTotal - prevTotal) / prevTotal * 100) : 0;
+        const trend = change >= 0 ? '↑' : '↓';
+        const color = change >= 0 ? 'var(--green)' : 'var(--red)';
+        const dayMap = {};
+        sales.forEach(s => { const day = new Date(s.time).toLocaleDateString('en', { weekday: 'long' }); if (!dayMap[day]) dayMap[day] = 0; dayMap[day] += s.total; });
+        const sortedDays = Object.entries(dayMap).sort((a, b) => b[1] - a[1]);
+        const bestDay = sortedDays.length > 0 ? sortedDays[0] : null;
+        const worstDay = sortedDays.length > 1 ? sortedDays[sortedDays.length - 1] : null;
+        html = `<div style="font-size:14px;line-height:2;">
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border-color);"><span>This Week</span><span class="mono" style="color:var(--green);">${formatCurrency(currentTotal)}</span></div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border-color);"><span>Last Week</span><span class="mono" style="color:var(--text-muted);">${prevTotal > 0 ? formatCurrency(prevTotal) : 'N/A'}</span></div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border-color);font-weight:600;"><span>Change</span><span class="mono" style="color:${color}">${prevTotal > 0 ? trend + ' ' + Math.abs(change).toFixed(1) + '%' : 'N/A'}</span></div>
+          ${bestDay ? `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border-color);"><span>Best Day</span><span class="mono" style="color:var(--green);">${bestDay[0]}: ${formatCurrency(bestDay[1])}</span></div>` : ''}
+          ${worstDay ? `<div style="display:flex;justify-content:space-between;padding:6px 0;"><span>Worst Day</span><span class="mono" style="color:var(--red);">${worstDay[0]}: ${formatCurrency(worstDay[1])}</span></div>` : ''}
+        </div>`;
+      }
+      document.getElementById('weekOverWeek').innerHTML = html;
+    }
+
+    function refreshAnalytics() { renderAnalytics(); showToast('Analytics refreshed!', 'info'); }
+
+    // ============================================
+    // EXPORT CSV
+    // ============================================
+    function exportCSV(myOnly) {
+      let sales = myOnly ? getSales().filter(s => s.userId === currentUser.id) : getSales();
+      if (!myOnly && firebaseSalesData && firebaseSalesData.length > 0) {
+        const localIds = new Set(sales.map(s => s.id));
+        const firebaseNew = firebaseSalesData.filter(s => !localIds.has(s.id));
+        sales = [...sales, ...firebaseNew];
+      }
+      const headers = ['Receipt', 'Date', 'Cashier', 'Role', 'Customer', 'Items', 'Total', 'Cost', 'Margin', 'Payment'];
+      const rows = sales.map(s => [s.id, new Date(s.time).toLocaleString('en-KE'), s.userName, s.userRole, s.customer, s.items ? s.items.map(i => i.name + 'x' + i.qty).join('; ') : '', s.total, s.cost, s.margin, s.payment]);
+      const csv = [headers, ...rows].map(r => r.map(c => '"' + c + '"').join(',')).join('\n');
+      const a = document.createElement('a');
+      a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+      a.download = 'FarmersChoice_' + (myOnly ? 'my' : 'all') + '_' + new Date().toISOString().slice(0,10) + '.csv';
+      a.click();
+      showToast('CSV exported.', 'info');
+    }
+
+    // ============================================
+    // HELPERS
+    // ============================================
+    function formatCurrency(n) { return 'KSh ' + Number(n).toLocaleString('en-KE', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
+    function getPaymentPillClass(payment) { const map = { Cash: 'pill-green', 'M-Pesa': 'pill-blue', Bank: 'pill-purple', Credit: 'pill-yellow' }; return map[payment] || 'pill-green'; }
+    function getRolePillClass(role) { const map = { owner: 'pill-yellow', manager: 'pill-blue', employee: 'pill-green' }; return map[role] || 'pill-green'; }
+    function createStats(arr) { return arr.map(([label, value, color]) => `<div class="stat-card"><div class="stat-label">${label}</div><div class="stat-value" style="color:${color};">${value}</div></div>`).join(''); }
+    function showToast(message, type) {
+      const container = document.getElementById('toastContainer');
+      const icons = { success: '✅', error: '❌', info: 'ℹ️' };
+      const el = document.createElement('div');
+      el.className = 'toast toast-' + type;
+      el.innerHTML = '<span>' + (icons[type] || 'ℹ️') + '</span><span>' + message + '</span>';
+      container.appendChild(el);
+      setTimeout(() => el.remove(), 3000);
+    }
+    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+    ['receiptModal', 'userModal', 'productModal', 'restockModal', 'profileEditModal', 'roleModal'].forEach(id => {
+      document.getElementById(id).addEventListener('click', function(e) { if (e.target === this) closeModal(id); });
+    });
+
+    setInterval(() => {
+      const el = document.getElementById('headerClock');
+      if (el) el.textContent = new Date().toLocaleString('en-KE', { dateStyle: 'medium', timeStyle: 'short' });
+    }, 1000);
+
+    setInterval(() => {
+      if (document.getElementById('page-analytics').classList.contains('active')) renderAnalytics();
+    }, 60000);
+
+    document.addEventListener('DOMContentLoaded', function() {
+      document.getElementById('loginEmail').value = '';
+      document.getElementById('loginPassword').value = '';
+      document.getElementById('loginName').value = '';
+      document.getElementById('authError').textContent = '';
+      isSignUpMode = false;
+      document.getElementById('toggleAuthBtn').textContent = "Don't have an account? Register";
+      document.getElementById('loginBtn').textContent = 'Sign In';
+      document.getElementById('nameField').style.display = 'none';
+    });
+
+    initDB();
+  </script>
+</body>
+</html>
