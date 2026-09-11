@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FarmersChoice Agrovet — Users</title>
+    <link rel="icon" type="image/png" href="assets/OIP.webp">
+    <link rel="stylesheet" href="css/shared.css">
+    <style>
+        .mono { font-family: var(--font-mono); }
+
+        .users-layout {
+            display: grid;
+            grid-template-columns: 1fr 420px;
+            gap: 14px;
+            align-items: start;
+        }
+        .users-layout.panel-closed { grid-template-columns: 1fr; }
+        .users-layout.panel-closed .users-side-panel { display: none; }
+
+        .users-filters {
+            display: flex; gap: 8px; flex-wrap: wrap;
+            margin-bottom: 12px; align-items: center;
+        }
+        .users-filters input,
+        .users-filters select {
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 8px 12px;
+            color: var(--text-primary);
+            font-size: 14px;
+            outline: none;
+        }
+        .users-filters input[type="text"] { flex: 1; min-width: 200px; }
+        .users-filters select { min-width: 140px; }
+
+        .users-table {
+            width: 100%; border-collapse: collapse; font-size: 13px;
+        }
+        .users-table th {
+            background: var(--bg-surface);
+            text-align: left; padding: 10px 14px;
+            font-family: var(--font-mono); font-size: 11px;
+            text-transform: uppercase; letter-spacing: 0.4px;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-color);
+            white-space: nowrap;
+        }
+        .users-table td {
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: middle;
+        }
+        .users-table tbody tr { cursor: pointer; transition: background 0.15s; }
+        .users-table tbody tr:hover { background: rgba(46, 125, 50, 0.05); }
+        .users-table tbody tr.selected { background: rgba(46, 125, 50, 0.12); }
+        .users-table tbody tr.inactive { opacity: 0.55; }
+
+        .user-cell { display: flex; align-items: center; gap: 10px; }
+        .user-avatar {
+            width: 34px; height: 34px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: 600;
+            font-family: var(--font-mono); flex-shrink: 0;
+        }
+        .user-avatar.owner    { background: rgba(46, 125, 50, 0.2); color: #4ade80; }
+        .user-avatar.manager  { background: rgba(52, 152, 219, 0.2); color: #60a5fa; }
+        .user-avatar.employee { background: rgba(46, 204, 113, 0.2); color: #6ee7b7; }
+        .user-avatar.inactive { background: rgba(120, 120, 120, 0.2); color: #9ca3af; }
+
+        .user-name-line { font-weight: 600; font-size: 13px; }
+        .user-email-line { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+        .username-line { font-size: 11px; color: var(--accent); font-family: var(--font-mono); }
+
+        .perm-badge {
+            font-family: var(--font-mono); font-size: 11px;
+            padding: 2px 8px; border-radius: 10px;
+            background: var(--bg-surface); color: var(--text-muted);
+            white-space: nowrap;
+        }
+        .perm-badge.all { background: rgba(46, 125, 50, 0.15); color: #4ade80; }
+        .perm-badge.none { opacity: 0.5; }
+
+        .users-side-panel {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 0;
+            position: sticky;
+            top: 14px;
+            max-height: calc(100vh - 100px);
+            display: flex;
+            flex-direction: column;
+        }
+        .panel-head {
+            display: flex; align-items: center; gap: 12px;
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .panel-head .user-avatar { width: 44px; height: 44px; font-size: 15px; }
+        .panel-head-info { flex: 1; min-width: 0; }
+        .panel-head-name { font-size: 15px; font-weight: 600; }
+        .panel-head-email { font-size: 12px; color: var(--text-muted); font-family: var(--font-mono); }
+        .panel-head-close {
+            width: 28px; height: 28px; border-radius: 50%;
+            background: transparent; border: 1px solid var(--border-color);
+            color: var(--text-muted); cursor: pointer; font-size: 14px;
+        }
+        .panel-head-close:hover { border-color: var(--accent); color: var(--accent); }
+
+        .panel-body { flex: 1; overflow-y: auto; padding: 16px; }
+        .panel-section { margin-bottom: 20px; }
+        .panel-section-label {
+            font-size: 11px; font-family: var(--font-mono);
+            text-transform: uppercase; letter-spacing: 0.6px;
+            color: var(--text-muted); margin-bottom: 8px;
+        }
+
+        .panel-field { margin-bottom: 12px; }
+        .panel-field label {
+            display: block; font-size: 12px;
+            color: var(--text-secondary); margin-bottom: 4px;
+        }
+        .panel-field input,
+        .panel-field select {
+            width: 100%;
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 8px 12px;
+            color: var(--text-primary);
+            font-size: 14px;
+            outline: none;
+        }
+        .panel-field input:disabled,
+        .panel-field select:disabled {
+            opacity: 0.6; cursor: not-allowed;
+        }
+        .panel-field input:focus,
+        .panel-field select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.2);
+        }
+
+        .perm-group {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 10px 12px;
+            margin-bottom: 10px;
+        }
+        .perm-group-head {
+            display: flex; align-items: center; justify-content: space-between;
+            font-size: 12px; font-weight: 600; margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+        .perm-group-head .grp-toggle {
+            font-size: 10px; font-family: var(--font-mono);
+            color: var(--accent); cursor: pointer;
+            text-transform: uppercase; letter-spacing: 0.3px;
+        }
+        .perm-group-head .grp-toggle:hover { text-decoration: underline; }
+
+        .perm-item {
+            display: flex; align-items: flex-start; gap: 8px;
+            padding: 6px 0; font-size: 12px;
+            color: var(--text-secondary); cursor: pointer; line-height: 1.4;
+        }
+        .perm-item input[type="checkbox"] {
+            margin-top: 2px; accent-color: var(--accent); cursor: pointer;
+        }
+        .perm-item:hover { color: var(--text-primary); }
+        .perm-item .perm-id {
+            display: block; font-family: var(--font-mono);
+            font-size: 10px; color: var(--text-muted); margin-top: 1px;
+        }
+
+        .panel-actions {
+            display: flex; gap: 8px;
+            padding: 12px 16px;
+            border-top: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+        }
+        .panel-actions .btn-ghost,
+        .panel-actions .btn-primary-solid,
+        .panel-actions .btn-danger {
+            flex: 1; justify-content: center;
+        }
+
+        .readonly-note {
+            background: rgba(52, 152, 219, 0.08);
+            border: 1px solid rgba(52, 152, 219, 0.3);
+            color: #60a5fa;
+            font-size: 12px; padding: 10px 12px;
+            border-radius: var(--radius-sm); margin-bottom: 14px;
+        }
+
+        .empty-mini {
+            padding: 40px 20px; text-align: center;
+            color: var(--text-muted); font-size: 14px;
+        }
+
+        .loading-spinner {
+            display: flex; justify-content: center; align-items: center;
+            padding: 30px; color: var(--text-muted); font-size: 14px;
+        }
+        .loading-spinner::before {
+            content: '';
+            width: 22px; height: 22px;
+            border: 3px solid var(--border-color);
+            border-top: 3px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 10px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .error-banner {
+            background: rgba(220, 38, 38, 0.1);
+            border: 1px solid rgba(220, 38, 38, 0.4);
+            color: #f87171;
+            padding: 14px 16px;
+            border-radius: var(--radius-sm);
+            margin: 10px 0;
+            display: flex; justify-content: space-between; align-items: center;
+            gap: 12px;
+        }
+
+        .modal-narrow { max-width: 480px; }
+
+        @media (max-width: 1000px) {
+            .users-layout { grid-template-columns: 1fr; }
+            .users-side-panel { position: static; max-height: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-left">
+            <div class="header-logo">FC</div>
+            <div>
+                <div class="header-title" id="appTitle">FarmersChoice Agrovet</div>
+                <div class="header-sub" id="headerClock"></div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="theme-toggle-wrapper" onclick="toggleTheme()" role="button" tabindex="0">
+                <span class="toggle-icon" id="themeIcon">🌙</span>
+                <div class="theme-toggle-switch"><div class="toggle-slider"></div></div>
+            </div>
+            <div class="user-chip" id="userChip">
+                <div class="avatar" id="userAvatar">🧑‍💼</div>
+                <span id="userName">User</span>
+                <span style="color:var(--text-muted);font-size:11px;font-family:var(--font-mono);" id="userRole">EMPLOYEE</span>
+            </div>
+            <button class="btn-ghost btn-sm" onclick="handleLogout()">Logout</button>
+        </div>
+    </header>
+
+    <div class="navbar" id="navbar">
+        <a href="pos.html" class="nav-tab">Sell</a>
+        <a href="stock.html" class="nav-tab">Stock</a>
+        <a href="mysales.html" class="nav-tab">My Sales</a>
+        <a href="allsales.html" class="nav-tab" id="tabAll" style="display:none;">All Sales</a>
+        <a href="credits.html" class="nav-tab" id="tabCredits" style="display:none;">Credits</a>
+        <a href="users.html" class="nav-tab active" id="tabUsers" style="display:none;">Users</a>
+        <a href="reports.html" class="nav-tab" id="tabReports" style="display:none;">Reports</a>
+        <a href="live.html" class="nav-tab" id="tabLive" style="display:none;">Live</a>
+        <a href="analytics.html" class="nav-tab" id="tabAnalytics" style="display:none;">Analytics</a>
+    </div>
+
+    <div class="page">
+        <div class="page-header">
+            <div class="page-title">Users</div>
+            <div style="display:flex;gap:8px;">
+                <button class="btn-ghost btn-sm" onclick="loadUsers()" title="Refresh">🔄 Refresh</button>
+                <button class="btn-primary-solid btn-sm" id="addUserBtn" style="display:none;" onclick="openAddUserModal()">+ Add User</button>
+            </div>
+        </div>
+
+        <div id="errorArea"></div>
+
+        <div class="users-filters">
+            <input type="text" id="userSearch" placeholder="Search by name, username, email or phone..." oninput="renderUsers()" />
+            <select id="roleFilter" title="Filter users by role" onchange="renderUsers()">
+                <option value="">All Roles</option>
+                <option value="owner">Owners</option>
+                <option value="manager">Managers</option>
+                <option value="employee">Employees</option>
+            </select>
+            <select id="statusFilter" title="Filter users by status" onchange="renderUsers()">
+                <option value="">All Status</option>
+                <option value="active">Active Only</option>
+                <option value="inactive">Deactivated</option>
+            </select>
+        </div>
+
+        <div class="users-layout panel-closed" id="usersLayout">
+            <div class="panel">
+                <table class="users-table">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Username</th>
+                            <th>Phone</th>
+                            <th>Role</th>
+                            <th>Permissions</th>
+                            <th>Last Login</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersBody">
+                        <tr><td colspan="7" class="loading-spinner">Loading users...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="users-side-panel" id="sidePanel"></div>
+        </div>
+    </div>
+
+    <!-- ADD USER MODAL -->
+    <div class="overlay" id="addUserModal">
+        <div class="modal modal-narrow">
+            <div class="modal-header">
+                <h3>Add New User</h3>
+                <button class="btn-ghost btn-sm" onclick="closeModal('addUserModal')">Close</button>
+            </div>
+            <div class="modal-body">
+                <div class="panel-field">
+                    <label>Full Name *</label>
+                    <input type="text" id="newUserName" placeholder="e.g., Jane Mwangi" />
+                </div>
+                <div class="panel-field">
+                    <label>Username</label>
+                    <input type="text" id="newUserUsername" placeholder="Leave blank to auto-generate" />
+                    <small style="color:var(--text-muted);font-size:11px;display:block;margin-top:4px;">
+                        Auto-generated from email if left blank.
+                    </small>
+                </div>
+                <div class="panel-field">
+                    <label>Email *</label>
+                    <input type="email" id="newUserEmail" placeholder="jane@farmerschoice.com" />
+                </div>
+                <div class="panel-field">
+                    <label>Phone</label>
+                    <input type="tel" id="newUserPhone" placeholder="0712 345 678" />
+                </div>
+                <div class="panel-field">
+                    <label>Temporary Password *</label>
+                    <input type="text" id="newUserPassword" placeholder="Min 6 characters" />
+                    <small style="color:var(--text-muted);font-size:11px;display:block;margin-top:4px;">
+                        Share this with the user. They can change it after logging in.
+                    </small>
+                </div>
+                <div class="panel-field">
+                    <label>Role</label>
+                    <select id="newUserRole" title="User role" aria-label="User role">
+                        <option value="employee">Employee (default)</option>
+                        <option value="manager">Manager</option>
+                        <option value="owner">Owner</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-ghost btn-sm" onclick="closeModal('addUserModal')">Cancel</button>
+                <button class="btn-primary-solid btn-sm" id="createUserBtn" onclick="submitNewUser()">Create User</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="js/config.js"></script>
+    <script src="js/env.js"></script>
+    <script src="js/shared.js"></script>
+
+    <script>
+    // ============================================
+    // STATE
+    // ============================================
+    let allUsers = [];
+    let permissionCatalog = null;
+    let selectedUserId = null;
+    let pendingChanges = null;
+
+    const ROLE_LABELS = { owner: 'Owner', manager: 'Manager', employee: 'Employee' };
+    const ROLE_ICONS = { owner: '👑', manager: '🎯', employee: '🧑‍💼' };
+
+    // ============================================
+    // HELPERS
+    // ============================================
+    function escapeHtml(s) {
+        return String(s ?? '').replace(/[&<>"']/g, c => ({
+            '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+        }[c]));
+    }
+
+    function initials(name) {
+        return (name || 'U').trim().split(/\s+/).map(x => x[0]).slice(0, 2).join('').toUpperCase();
+    }
+
+    function fmtDate(iso) {
+        if (!iso) return '—';
+        const d = new Date(iso);
+        const now = new Date();
+        const diffDays = Math.floor((now - d) / 86400000);
+        if (diffDays === 0) return 'Today ' + d.toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit', hour12: false });
+        if (diffDays === 1) return 'Yesterday';
+        if (diffDays < 7) return diffDays + ' days ago';
+        return d.toLocaleDateString('en-KE', { day: 'numeric', month: 'short' });
+    }
+
+    function permissionCount(user) {
+        const perms = Array.isArray(user.permissions) ? user.permissions : [];
+        if (perms.includes('all')) return 'ALL';
+        return perms.length;
+    }
+
+    function isOwner(user) { return user?.role === 'owner'; }
+    function isMe(user) {
+        const me = getCurrentUser();
+        return me && me.id === user.id;
+    }
+
+    // ============================================
+    // LOAD USERS
+    // ============================================
+    async function loadUsers() {
+        const tbody = document.getElementById('usersBody');
+        const errorArea = document.getElementById('errorArea');
+        errorArea.innerHTML = '';
+        tbody.innerHTML = '<tr><td colspan="7" class="loading-spinner">Loading users...</td></tr>';
+
+        try {
+            const [users, catalog] = await Promise.all([
+                fetchUsers(),
+                permissionCatalog ? Promise.resolve(permissionCatalog) : fetchPermissionCatalog()
+            ]);
+            allUsers = Array.isArray(users) ? users : [];
+            permissionCatalog = catalog;
+            renderUsers();
+        } catch (err) {
+            console.error('loadUsers failed:', err);
+            tbody.innerHTML = '';
+            errorArea.innerHTML = `
+                <div class="error-banner">
+                    <div>
+                        <strong>Could not load users.</strong><br>
+                        <span style="font-size:13px;">${escapeHtml(err.message || 'Unknown error')}</span>
+                    </div>
+                    <button class="btn-ghost btn-sm" onclick="loadUsers()">Retry</button>
+                </div>`;
+            showToast('Failed to load users', 'error');
+        }
+    }
+
+    // ============================================
+    // RENDER USERS TABLE
+    // ============================================
+    function renderUsers() {
+        const q = (document.getElementById('userSearch').value || '').toLowerCase().trim();
+        const roleF = document.getElementById('roleFilter').value;
+        const statusF = document.getElementById('statusFilter').value;
+
+        let list = allUsers.slice();
+
+        if (q) {
+            list = list.filter(u =>
+                (u.full_name || '').toLowerCase().includes(q) ||
+                (u.email || '').toLowerCase().includes(q) ||
+                (u.username || '').toLowerCase().includes(q) ||
+                (u.phone || '').toLowerCase().includes(q)
+            );
+        }
+        if (roleF) list = list.filter(u => u.role === roleF);
+        if (statusF === 'active') list = list.filter(u => u.is_active !== false);
+        if (statusF === 'inactive') list = list.filter(u => u.is_active === false);
+
+        const order = { owner: 0, manager: 1, employee: 2 };
+        list.sort((a, b) => {
+            const ao = order[a.role] ?? 3;
+            const bo = order[b.role] ?? 3;
+            if (ao !== bo) return ao - bo;
+            return (a.full_name || '').localeCompare(b.full_name || '');
+        });
+
+        const tbody = document.getElementById('usersBody');
+
+        if (!list.length) {
+            tbody.innerHTML = `<tr><td colspan="7" class="empty-mini">${allUsers.length ? 'No users match your filters.' : 'No users found.'}</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = list.map(u => {
+            const avatarClass = u.is_active === false ? 'inactive' : u.role;
+            const inactive = u.is_active === false;
+            const isSelected = u.id === selectedUserId;
+            const permCount = permissionCount(u);
+            const permLabel = permCount === 'ALL' ? 'All permissions' : (permCount === 0 ? 'None' : permCount + ' granted');
+
+            return `
+                <tr class="${isSelected ? 'selected' : ''} ${inactive ? 'inactive' : ''}" onclick="selectUser('${u.id}')">
+                    <td>
+                        <div class="user-cell">
+                            <div class="user-avatar ${avatarClass}">${initials(u.full_name)}</div>
+                            <div>
+                                <div class="user-name-line">${escapeHtml(u.full_name || 'Unnamed')} ${isMe(u) ? '<span style="color:var(--accent);font-size:10px;font-family:var(--font-mono);">(you)</span>' : ''}</div>
+                                <div class="user-email-line">${escapeHtml(u.email || '')}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="username-line">${u.username ? '@' + escapeHtml(u.username) : '<span style="color:var(--text-muted);">—</span>'}</td>
+                    <td class="mono" style="font-size:12px;">${escapeHtml(u.phone || '—')}</td>
+                    <td>
+                        <span class="pill ${getRolePillClass(u.role)}">
+                            ${ROLE_ICONS[u.role] || ''} ${ROLE_LABELS[u.role] || u.role}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="perm-badge ${permCount === 'ALL' ? 'all' : (permCount === 0 ? 'none' : '')}">
+                            ${permLabel}
+                        </span>
+                    </td>
+                    <td class="muted" style="font-size:12px;">${fmtDate(u.last_login)}</td>
+                    <td>
+                        ${inactive
+                            ? '<span class="pill pill-red">Deactivated</span>'
+                            : '<span class="pill pill-green">Active</span>'}
+                    </td>
+                </tr>`;
+        }).join('');
+    }
+
+    // ============================================
+    // SELECT USER
+    // ============================================
+    function selectUser(userId) {
+        selectedUserId = userId;
+        pendingChanges = null;
+        renderUsers();
+        renderSidePanel();
+    }
+
+    function closeSidePanel() {
+        selectedUserId = null;
+        pendingChanges = null;
+        renderUsers();
+        renderSidePanel();
+    }
+
+    function renderSidePanel() {
+        const layout = document.getElementById('usersLayout');
+        const panel = document.getElementById('sidePanel');
+
+        if (!selectedUserId) {
+            layout.classList.add('panel-closed');
+            panel.innerHTML = '';
+            return;
+        }
+
+        const user = allUsers.find(u => u.id === selectedUserId);
+        if (!user) {
+            layout.classList.add('panel-closed');
+            panel.innerHTML = '';
+            return;
+        }
+
+        layout.classList.remove('panel-closed');
+
+        const canEditRole = hasPerm('users.edit_role');
+        const canEditPerms = hasPerm('users.edit_perms');
+        const canDeactivate = hasPerm('users.deactivate');
+        const ownerUser = isOwner(user);
+        const self = isMe(user);
+
+        const currentPerms = Array.isArray(user.permissions) ? user.permissions : [];
+        const workingPerms = pendingChanges?.permissions || currentPerms.slice();
+        const workingRole = pendingChanges?.role || user.role;
+
+        let html = `
+            <div class="panel-head">
+                <div class="user-avatar ${user.role}">${initials(user.full_name)}</div>
+                <div class="panel-head-info">
+                    <div class="panel-head-name">${escapeHtml(user.full_name || 'Unnamed')}</div>
+                    <div class="panel-head-email">${escapeHtml(user.email || '')}</div>
+                </div>
+                <button class="panel-head-close" onclick="closeSidePanel()" title="Close">✕</button>
+            </div>
+            <div class="panel-body">`;
+
+        if (self) {
+            html += `<div class="readonly-note">👤 This is you. You can view but not modify your own role or permissions.</div>`;
+        }
+
+        // Profile
+        html += `
+            <div class="panel-section">
+                <div class="panel-section-label">Profile</div>
+                <div class="panel-field">
+                    <label>Full Name</label>
+                    <input type="text" id="editFullName" value="${escapeHtml(user.full_name || '')}" ${!canEditRole ? 'disabled' : ''} />
+                </div>
+                <div class="panel-field">
+                    <label>Username</label>
+                    <input type="text" id="editUsername" value="${escapeHtml(user.username || '')}" placeholder="auto-generated if blank" ${!canEditRole ? 'disabled' : ''} />
+                </div>
+                <div class="panel-field">
+                    <label>Phone</label>
+                    <input type="tel" id="editPhone" value="${escapeHtml(user.phone || '')}" placeholder="0712 345 678" ${!canEditRole ? 'disabled' : ''} />
+                </div>
+                <div class="panel-field">
+                    <label>Email</label>
+                    <input type="text" value="${escapeHtml(user.email || '')}" disabled />
+                </div>
+            </div>`;
+
+        // Role
+        html += `
+            <div class="panel-section">
+                <div class="panel-section-label">Role</div>
+                <div class="panel-field">
+                    <select id="editRole" ${!canEditRole || self ? 'disabled' : ''}>
+                        <option value="employee" ${workingRole === 'employee' ? 'selected' : ''}>🧑‍💼 Employee</option>
+                        <option value="manager"  ${workingRole === 'manager'  ? 'selected' : ''}>🎯 Manager</option>
+                        <option value="owner"    ${workingRole === 'owner'    ? 'selected' : ''}>👑 Owner</option>
+                    </select>
+                    <small style="color:var(--text-muted);font-size:11px;display:block;margin-top:4px;">
+                        ${ownerUser ? 'Owners always have all permissions.' : 'Role is a label — actual access is controlled by the permissions below.'}
+                    </small>
+                </div>
+            </div>`;
+
+        // Permissions
+        if (ownerUser) {
+            html += `
+                <div class="panel-section">
+                    <div class="panel-section-label">Permissions</div>
+                    <div class="readonly-note" style="margin:0;">
+                        👑 Owners have <strong>all permissions</strong> by default. To grant custom permissions, first change the role to Manager or Employee.
+                    </div>
+                </div>`;
+        } else {
+            const groups = permissionCatalog?.groups || [];
+            html += `
+                <div class="panel-section">
+                    <div class="panel-section-label">Permissions (${workingPerms.length} granted)</div>`;
+
+            for (const g of groups) {
+                const granted = g.items.filter(p => workingPerms.includes(p)).length;
+                html += `
+                    <div class="perm-group">
+                        <div class="perm-group-head">
+                            <span>${g.icon || ''} ${escapeHtml(g.group)}</span>
+                            <span class="grp-toggle" onclick="toggleGroup('${g.group.replace(/'/g, "\\'")}', ${canEditPerms ? 'true' : 'false'})">
+                                ${granted === g.items.length ? 'Clear' : 'Select all'}
+                            </span>
+                        </div>`;
+
+                for (const pid of g.items) {
+                    const label = permissionCatalog.permissions[pid] || pid;
+                    const checked = workingPerms.includes(pid);
+                    const disabled = !canEditPerms || self;
+                    html += `
+                        <label class="perm-item">
+                            <input type="checkbox" data-perm="${pid}" ${checked ? 'checked' : ''} ${disabled ? 'disabled' : ''}
+                                   onchange="togglePerm('${pid}', this.checked)" />
+                            <span>
+                                ${escapeHtml(label)}
+                                <span class="perm-id">${pid}</span>
+                            </span>
+                        </label>`;
+                }
+                html += `</div>`;
+            }
+            html += `</div>`;
+        }
+
+        // Status
+        html += `
+            <div class="panel-section">
+                <div class="panel-section-label">Status</div>
+                <div style="display:flex;align-items:center;gap:10px;">
+                    ${user.is_active === false
+                        ? '<span class="pill pill-red">Deactivated</span>'
+                        : '<span class="pill pill-green">Active</span>'}
+                    <span style="color:var(--text-muted);font-size:11px;font-family:var(--font-mono);">
+                        Last login: ${fmtDate(user.last_login)}
+                    </span>
+                </div>
+            </div>`;
+
+        html += `</div>`;
+
+        const hasChanges = pendingChanges && (
+            (pendingChanges.role && pendingChanges.role !== user.role) ||
+            (pendingChanges.permissions && JSON.stringify([...pendingChanges.permissions].sort()) !== JSON.stringify([...currentPerms].sort())) ||
+            pendingChanges.profile
+        );
+
+        const canSave = hasChanges && (
+            (pendingChanges.role && canEditRole) ||
+            (pendingChanges.permissions && canEditPerms) ||
+            (pendingChanges.profile && canEditRole)
+        );
+
+        html += `
+            <div class="panel-actions">
+                ${canDeactivate && !self ? `
+                    ${user.is_active === false
+                        ? `<button class="btn-ghost btn-sm" onclick="handleReactivate()">✅ Reactivate</button>`
+                        : `<button class="btn-danger btn-sm" onclick="handleDeactivate()">🚫 Deactivate</button>`
+                    }` : ''}
+                <button class="btn-primary-solid btn-sm" ${!canSave ? 'disabled' : ''} onclick="savePanelChanges()">
+                    ${hasChanges ? 'Save Changes' : 'No Changes'}
+                </button>
+            </div>`;
+
+        panel.innerHTML = html;
+
+        // Hook up role change
+        const roleSel = document.getElementById('editRole');
+        if (roleSel && !roleSel.disabled) {
+            roleSel.addEventListener('change', e => {
+                pendingChanges = pendingChanges || {};
+                pendingChanges.role = e.target.value;
+                renderSidePanel();
+            });
+        }
+
+        // Track profile changes (name/username/phone)
+        ['editFullName', 'editUsername', 'editPhone'].forEach(id => {
+            const el = document.getElementById(id);
+            if (!el || el.disabled) return;
+            el.addEventListener('input', () => {
+                const name = document.getElementById('editFullName').value.trim();
+                const uname = document.getElementById('editUsername').value.trim();
+                const phone = document.getElementById('editPhone').value.trim();
+
+                const profileChanged =
+                    name !== (user.full_name || '') ||
+                    uname !== (user.username || '') ||
+                    phone !== (user.phone || '');
+
+                pendingChanges = pendingChanges || {};
+                if (profileChanged) {
+                    pendingChanges.profile = {
+                        full_name: name,
+                        username: uname || null,
+                        phone: phone || null
+                    };
+                } else {
+                    delete pendingChanges.profile;
+                }
+                // Update the save button state without a full re-render
+                const btn = document.querySelector('.panel-actions .btn-primary-solid');
+                if (btn) {
+                    const willSave = pendingChanges && (
+                        (pendingChanges.role && pendingChanges.role !== user.role) ||
+                        (pendingChanges.permissions && JSON.stringify([...pendingChanges.permissions].sort()) !== JSON.stringify([...currentPerms].sort())) ||
+                        pendingChanges.profile
+                    );
+                    btn.disabled = !willSave;
+                    btn.textContent = willSave ? 'Save Changes' : 'No Changes';
+                }
+            });
+        });
+    }
+
+    // ============================================
+    // PERMISSION TOGGLING
+    // ============================================
+    function togglePerm(pid, checked) {
+        const user = allUsers.find(u => u.id === selectedUserId);
+        if (!user) return;
+        const base = pendingChanges?.permissions || (Array.isArray(user.permissions) ? user.permissions.slice() : []);
+
+        let next = base.slice();
+        if (checked) {
+            if (!next.includes(pid)) next.push(pid);
+        } else {
+            next = next.filter(p => p !== pid);
+        }
+
+        pendingChanges = pendingChanges || {};
+        pendingChanges.permissions = next;
+
+        const sections = document.querySelectorAll('.panel-section-label');
+        for (const s of sections) {
+            if (s.textContent.startsWith('Permissions')) {
+                s.textContent = `Permissions (${next.length} granted)`;
+            }
+        }
+
+        clearTimeout(window.__permRenderDebounce);
+        window.__permRenderDebounce = setTimeout(() => {
+            const scrollTop = document.querySelector('.panel-body')?.scrollTop || 0;
+            renderSidePanel();
+            const body = document.querySelector('.panel-body');
+            if (body) body.scrollTop = scrollTop;
+        }, 250);
+    }
+
+    function toggleGroup(groupName, allowed) {
+        if (!allowed) return;
+        const user = allUsers.find(u => u.id === selectedUserId);
+        if (!user) return;
+        const group = permissionCatalog.groups.find(g => g.group === groupName);
+        if (!group) return;
+
+        const base = pendingChanges?.permissions || (Array.isArray(user.permissions) ? user.permissions.slice() : []);
+        const allChecked = group.items.every(p => base.includes(p));
+
+        let next;
+        if (allChecked) {
+            next = base.filter(p => !group.items.includes(p));
+        } else {
+            const set = new Set(base);
+            group.items.forEach(p => set.add(p));
+            next = Array.from(set);
+        }
+
+        pendingChanges = pendingChanges || {};
+        pendingChanges.permissions = next;
+        renderSidePanel();
+    }
+
+    // ============================================
+    // SAVE CHANGES
+    // ============================================
+    async function savePanelChanges() {
+        if (!pendingChanges || !selectedUserId) return;
+        const user = allUsers.find(u => u.id === selectedUserId);
+        if (!user) return;
+
+        const btn = document.querySelector('.panel-actions .btn-primary-solid');
+        if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+
+        try {
+            // Save profile first (name/username/phone)
+            if (pendingChanges.profile) {
+                await updateUserProfile(user.id, pendingChanges.profile);
+                showToast(`Profile updated`, 'success');
+            }
+            // Then role (may reset permissions)
+            if (pendingChanges.role && pendingChanges.role !== user.role) {
+                await updateUserRole(user.id, pendingChanges.role);
+                showToast(`Role changed to ${pendingChanges.role}`, 'success');
+            }
+            // Then permissions
+            if (pendingChanges.permissions) {
+                await updateUserPermissions(user.id, pendingChanges.permissions);
+                showToast(`Permissions updated`, 'success');
+            }
+
+            pendingChanges = null;
+            await loadUsers();
+            renderSidePanel();
+        } catch (err) {
+            console.error('savePanelChanges failed:', err);
+            showToast('Save failed: ' + err.message, 'error');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = 'Save Changes';
+            }
+        }
+    }
+
+    // ============================================
+    // DEACTIVATE / REACTIVATE
+    // ============================================
+    async function handleDeactivate() {
+        const user = allUsers.find(u => u.id === selectedUserId);
+        if (!user) return;
+        if (!confirm(`Deactivate "${user.full_name}"?\n\nThey won't be able to log in until reactivated.`)) return;
+        try {
+            await deactivateUser(user.id);
+            showToast(`${user.full_name} deactivated`, 'warning');
+            await loadUsers();
+            renderSidePanel();
+        } catch (err) {
+            showToast('Deactivate failed: ' + err.message, 'error');
+        }
+    }
+
+    async function handleReactivate() {
+        const user = allUsers.find(u => u.id === selectedUserId);
+        if (!user) return;
+        try {
+            await reactivateUser(user.id);
+            showToast(`${user.full_name} reactivated`, 'success');
+            await loadUsers();
+            renderSidePanel();
+        } catch (err) {
+            showToast('Reactivate failed: ' + err.message, 'error');
+        }
+    }
+
+    // ============================================
+    // ADD USER MODAL
+    // ============================================
+    function openAddUserModal() {
+        document.getElementById('newUserName').value = '';
+        document.getElementById('newUserUsername').value = '';
+        document.getElementById('newUserEmail').value = '';
+        document.getElementById('newUserPhone').value = '';
+        document.getElementById('newUserPassword').value = '';
+        document.getElementById('newUserRole').value = 'employee';
+        openModal('addUserModal');
+    }
+
+    async function submitNewUser() {
+        const name = document.getElementById('newUserName').value.trim();
+        const username = document.getElementById('newUserUsername').value.trim();
+        const email = document.getElementById('newUserEmail').value.trim();
+        const phone = document.getElementById('newUserPhone').value.trim();
+        const password = document.getElementById('newUserPassword').value;
+        const role = document.getElementById('newUserRole').value;
+
+        if (!name || !email || !password) {
+            showToast('Name, email, and password are required', 'error');
+            return;
+        }
+        if (password.length < 6) {
+            showToast('Password must be at least 6 characters', 'error');
+            return;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            showToast('Please enter a valid email', 'error');
+            return;
+        }
+
+        const btn = document.getElementById('createUserBtn');
+        btn.disabled = true;
+        btn.textContent = 'Creating...';
+
+        try {
+            const created = await createUser({
+                full_name: name,
+                username: username || undefined,
+                email,
+                phone: phone || undefined,
+                password,
+                role
+            });
+            showToast(`User "${name}" created`, 'success');
+            closeModal('addUserModal');
+            await loadUsers();
+            if (created?.id) selectUser(created.id);
+        } catch (err) {
+            console.error('submitNewUser failed:', err);
+            showToast('Create failed: ' + err.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Create User';
+        }
+    }
+
+    // ============================================
+    // INIT
+    // ============================================
+    async function init() {
+        if (!requireAuth()) return;
+        await refreshCurrentUser();
+
+        if (!hasPerm('users.view')) {
+            showToast('Access denied — owner only', 'error');
+            setTimeout(() => window.location.href = 'pos.html', 800);
+            return;
+        }
+
+        if (window.CONFIG?.APP?.NAME) {
+            const t = document.getElementById('appTitle');
+            if (t) t.textContent = CONFIG.APP.NAME;
+        }
+
+        document.getElementById('tabAll').style.display       = hasPerm('sales.view_all')  ? '' : 'none';
+        document.getElementById('tabCredits').style.display   = hasPerm('sales.view_all')  ? '' : 'none';
+        document.getElementById('tabReports').style.display   = hasPerm('reports.view')    ? '' : 'none';
+        document.getElementById('tabLive').style.display      = hasPerm('live.view')       ? '' : 'none';
+        document.getElementById('tabAnalytics').style.display = hasPerm('analytics.view')  ? '' : 'none';
+        document.getElementById('tabUsers').style.display     = hasPerm('users.view')      ? '' : 'none';
+
+        document.getElementById('addUserBtn').style.display = hasPerm('users.create') ? '' : 'none';
+
+        updateUserChip();
+        await loadUsers();
+
+        console.log('✅ Users page ready');
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

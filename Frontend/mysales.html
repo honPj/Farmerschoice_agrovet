@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FarmersChoice Agrovet — My Sales</title>
+    <link rel="icon" type="image/png" href="assets/OIP.webp">
+    <link rel="stylesheet" href="css/shared.css">
+    <style>
+        .mono { font-family: var(--font-mono); }
+
+        .loading-spinner {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 30px;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+        .loading-spinner::before {
+            content: '';
+            width: 24px;
+            height: 24px;
+            border: 3px solid var(--border-color);
+            border-top: 3px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 12px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .error-banner {
+            background: rgba(220, 38, 38, 0.1);
+            border: 1px solid rgba(220, 38, 38, 0.4);
+            color: #f87171;
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .empty-state {
+            padding: 32px 16px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .filters-bar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+            align-items: center;
+        }
+        .filters-bar .search-input { flex: 1; min-width: 220px; }
+        .filters-bar select {
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: var(--radius-sm);
+            padding: 8px 12px;
+            font-size: 14px;
+            min-width: 160px;
+            outline: none;
+        }
+
+        .receipt {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-word;
+            background: var(--bg-primary);
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            max-height: 460px;
+            overflow-y: auto;
+        }
+
+        .sale-row { cursor: pointer; }
+        .sale-row:hover { background: rgba(46, 125, 50, 0.06); }
+    </style>
+</head>
+<body>
+
+    <!-- HEADER -->
+    <header>
+        <div class="header-left">
+            <div class="header-logo">FC</div>
+            <div>
+                <div class="header-title" id="appTitle">FarmersChoice Agrovet</div>
+                <div class="header-sub" id="headerClock"></div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="theme-toggle-wrapper" onclick="toggleTheme()" role="button" tabindex="0">
+                <span class="toggle-icon" id="themeIcon">🌙</span>
+                <div class="theme-toggle-switch"><div class="toggle-slider"></div></div>
+            </div>
+            <div class="user-chip" id="userChip">
+                <div class="avatar" id="userAvatar">🧑‍💼</div>
+                <span id="userName">User</span>
+                <span style="color:var(--text-muted);font-size:11px;font-family:var(--font-mono);" id="userRole">EMPLOYEE</span>
+            </div>
+            <button class="btn-ghost btn-sm" onclick="handleLogout()">Logout</button>
+        </div>
+    </header>
+
+    <!-- NAVIGATION -->
+        <div class="navbar" id="navbar">
+        <a href="pos.html" class="nav-tab">Sell</a>
+        <a href="stock.html" class="nav-tab">Stock</a>
+        <a href="mysales.html" class="nav-tab active">My Sales</a>
+        <a href="allsales.html" class="nav-tab" id="tabAll" style="display:none;">All Sales</a>
+         <a href="credits.html" class="nav-tab " id="tabCredits" style="display:none;">Credits</a>
+        <a href="users.html" class="nav-tab" id="tabUsers" style="display:none;">Users</a>
+        <a href="reports.html" class="nav-tab" id="tabReports" style="display:none;">Reports</a>
+        <a href="live.html" class="nav-tab" id="tabLive" style="display:none;">Live</a>
+        <a href="analytics.html" class="nav-tab" id="tabAnalytics" style="display:none;">Analytics</a>
+    </div>
+
+    <!-- PAGE -->
+    <div class="page">
+        <div class="page-header">
+            <div class="page-title">My Sales <span id="pageDate" style="color:var(--text-muted);font-size:14px;font-weight:400;margin-left:8px;"></span></div>
+            <div style="display:flex;gap:8px;">
+                <button class="btn-ghost btn-sm" onclick="loadMySales()" title="Refresh">🔄 Refresh</button>
+                <button class="btn-ghost btn-sm" onclick="exportCSV()" title="Export today's sales">⬇️ Export CSV</button>
+            </div>
+        </div>
+
+        <div id="errorArea"></div>
+        <div class="stats-grid" id="myStats"></div>
+
+        <div class="filters-bar">
+            <input type="text" id="saleSearch" class="search-input" placeholder="Search by receipt # or customer..." oninput="renderSales()" autocomplete="off" />
+            <select id="paymentFilter" onchange="renderSales()" title="Filter sales by payment method">
+                <option value="">All Payments</option>
+                <option value="Cash">Cash</option>
+                <option value="M-Pesa">M-Pesa</option>
+                <option value="Bank">Bank</option>
+                <option value="Credit">Credit</option>
+            </select>
+        </div>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Receipt</th>
+                        <th>Time</th>
+                        <th>Customer</th>
+                        <th>Items</th>
+                        <th>Total</th>
+                        <th>Payment</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="mySalesBody">
+                    <tr><td colspan="7" style="text-align:center;padding:30px;">
+                        <div class="loading-spinner">Loading your sales...</div>
+                    </td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- RECEIPT MODAL -->
+    <div class="overlay" id="receiptModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Receipt</h3>
+                <button class="btn-ghost btn-sm" onclick="closeModal('receiptModal')">Close</button>
+            </div>
+            <div class="modal-body">
+                <div class="receipt" id="receiptContent"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-ghost btn-sm" onclick="printReceipt()">🖨️ Print</button>
+                <button class="btn-ghost btn-sm" onclick="downloadReceipt()">⬇️ Download</button>
+                <button class="btn-primary-solid btn-sm" onclick="closeModal('receiptModal')">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- SCRIPTS -->
+    <script src="js/config.js"></script>
+    <script src="js/env.js"></script>
+    <script src="js/shared.js"></script>
+
+    <script>
+    // ============================================
+    // STATE
+    // ============================================
+    let sales = [];
+    let lastReceiptText = '';
+
+    // ============================================
+    // HELPERS
+    // ============================================
+    function escapeHtml(s) {
+        return String(s ?? '').replace(/[&<>"']/g, c => ({
+            '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+        }[c]));
+    }
+
+    function todayStartISO() {
+        const d = new Date();
+        d.setHours(0, 0, 0, 0);
+        return d.toISOString();
+    }
+
+    function fmtTime(iso) {
+        if (!iso) return '—';
+        const d = new Date(iso);
+        return d.toLocaleString('en-KE', { dateStyle: 'short', timeStyle: 'short' });
+    }
+
+    // ============================================
+    // LOAD MY SALES (today only)
+    // ============================================
+    async function loadMySales() {
+        const tbody = document.getElementById('mySalesBody');
+        const errorArea = document.getElementById('errorArea');
+        errorArea.innerHTML = '';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;"><div class="loading-spinner">Loading your sales...</div></td></tr>';
+
+        try {
+            const data = await fetchMySales({
+                start_date: todayStartISO(),
+                limit: 500
+            });
+
+            sales = Array.isArray(data) ? data : [];
+            renderSales();
+        } catch (err) {
+            console.error('loadMySales failed:', err);
+            tbody.innerHTML = '';
+            errorArea.innerHTML = `
+                <div class="error-banner">
+                    <div>
+                        <strong>Could not load your sales.</strong><br>
+                        <span style="font-size:13px;">${escapeHtml(err.message || 'Unknown error')}</span>
+                    </div>
+                    <button class="btn-ghost btn-sm" onclick="loadMySales()">Retry</button>
+                </div>`;
+            showToast('Failed to load sales', 'error');
+        }
+    }
+
+    // ============================================
+    // RENDER
+    // ============================================
+    function renderSales() {
+        const q = (document.getElementById('saleSearch').value || '').trim().toLowerCase();
+        const pm = document.getElementById('paymentFilter').value;
+
+        let list = sales.slice();  // already fetched for today only
+
+        if (pm) list = list.filter(s => s.payment_method === pm);
+        if (q) {
+            list = list.filter(s =>
+                (s.receipt_number || '').toLowerCase().includes(q) ||
+                (s.customer_name || '').toLowerCase().includes(q)
+            );
+        }
+
+        // Newest first
+        list.sort((a, b) => new Date(b.sale_date || b.created_at) - new Date(a.sale_date || a.created_at));
+
+        renderStats(list);
+        renderRows(list);
+    }
+
+    function renderStats(list) {
+        const total = list.reduce((s, x) => s + (Number(x.total) || 0), 0);
+        const items = list.reduce((s, x) => s + (x.sale_items ? x.sale_items.length : 0), 0);
+        const avg = list.length ? total / list.length : 0;
+        const uniqueCustomers = new Set(list.map(s => s.customer_name || 'Walk-in')).size;
+
+        document.getElementById('myStats').innerHTML = createStats([
+            ['Transactions', list.length, 'var(--accent)'],
+            ['Total Revenue', formatCurrency(total), 'var(--green)'],
+            ['Items Sold', items, 'var(--accent)'],
+            ['Avg Sale', formatCurrency(avg), 'var(--text)']
+        ]);
+    }
+
+    function renderRows(list) {
+        const tbody = document.getElementById('mySalesBody');
+
+        if (!sales.length) {
+            tbody.innerHTML = `
+                <tr><td colspan="7" class="empty-state">
+                    No sales today yet.<br>
+                    <span style="font-size:12px;">Head to <a href="pos.html" style="color:var(--accent);">Sell</a> to make your first sale.</span>
+                </td></tr>`;
+            return;
+        }
+        if (!list.length) {
+            tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No sales match your filters.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = list.map(s => {
+            const itemCount = s.sale_items ? s.sale_items.length : 0;
+            return `
+                <tr class="sale-row" onclick="openSale('${s.id}')">
+                    <td class="mono" style="font-size:12px;">${escapeHtml(s.receipt_number || '—')}</td>
+                    <td style="font-size:12px;">${fmtTime(s.sale_date || s.created_at)}</td>
+                    <td>${escapeHtml(s.customer_name || 'Walk-in')}</td>
+                    <td class="mono">${itemCount}</td>
+                    <td class="mono" style="color:var(--green);">${formatCurrency(s.total)}</td>
+                    <td><span class="pill ${getPaymentPillClass(s.payment_method)}">${escapeHtml(s.payment_method || '—')}</span></td>
+                    <td><button class="btn-ghost btn-sm" onclick="event.stopPropagation();openSale('${s.id}')">View</button></td>
+                </tr>`;
+        }).join('');
+    }
+
+    // ============================================
+    // OPEN SALE → fetch detail → receipt
+    // ============================================
+    async function openSale(saleId) {
+        // First check if the list already has full items
+        const cached = sales.find(s => s.id === saleId);
+        if (cached && Array.isArray(cached.sale_items) && cached.sale_items.length) {
+            showReceipt(cached);
+            return;
+        }
+
+        try {
+            const response = await apiRequest(`/sales/${saleId}`);
+            showReceipt(response.data);
+        } catch (err) {
+            console.error('openSale failed:', err);
+            showToast('Could not load sale: ' + err.message, 'error');
+        }
+    }
+
+    // ============================================
+    // RECEIPT
+    // ============================================
+    function showReceipt(sale) {
+        const cfg = window.CONFIG?.RECEIPT || {};
+        const header = cfg.HEADER || 'FarmersChoice Agrovet';
+        const sub = cfg.SUBHEADER || 'Nairobi, Kenya';
+        const footer = cfg.FOOTER || 'Thank you for your business!';
+        const sep = '─'.repeat(42);
+
+        const dt = new Date(sale.sale_date || sale.created_at).toLocaleString('en-KE', {
+            dateStyle: 'medium', timeStyle: 'short'
+        });
+
+        const user = getCurrentUser();
+        const items = sale.sale_items || [];
+
+        const lines = [];
+        lines.push(header);
+        lines.push(sub);
+        lines.push(sep);
+        lines.push(`Receipt #:  ${sale.receipt_number || '—'}`);
+        lines.push(`Date:       ${dt}`);
+        lines.push(`Cashier:    ${user?.full_name || user?.name || 'User'}`);
+        lines.push(`Customer:   ${sale.customer_name || 'Walk-in'}`);
+        lines.push(sep);
+
+        if (items.length) {
+            for (const it of items) {
+                lines.push(it.product_name || 'Item');
+                lines.push(`  ${it.quantity} × ${formatCurrency(it.unit_price)} = ${formatCurrency(it.total_price)}`);
+            }
+        } else {
+            lines.push('(No item details available)');
+        }
+
+        lines.push(sep);
+        lines.push(`Subtotal:   ${formatCurrency(sale.subtotal || sale.total || 0)}`);
+        if (sale.discount) lines.push(`Discount:   -${formatCurrency(sale.discount)}`);
+        if (sale.tax)      lines.push(`Tax:        ${formatCurrency(sale.tax)}`);
+        lines.push(`TOTAL:      ${formatCurrency(sale.total || 0)}`);
+        lines.push(sep);
+        lines.push(`Payment:    ${sale.payment_method || '—'}`);
+        lines.push('');
+        lines.push(footer);
+
+        lastReceiptText = lines.join('\n');
+        document.getElementById('receiptContent').textContent = lastReceiptText;
+        openModal('receiptModal');
+    }
+
+    function printReceipt() {
+        if (!lastReceiptText) return;
+        const w = window.open('', '_blank', 'width=420,height=640');
+        if (!w) { showToast('Popup blocked — allow popups to print', 'error'); return; }
+        w.document.write(`<!doctype html><html><head><title>Receipt</title>
+            <style>body{font-family:'Courier New',monospace;font-size:13px;padding:16px;white-space:pre-wrap;word-break:break-all;}</style>
+            </head><body>${escapeHtml(lastReceiptText)}</body></html>`);
+        w.document.close();
+        w.focus();
+        w.onafterprint = () => w.close();
+        setTimeout(() => w.print(), 200);
+    }
+
+    function downloadReceipt() {
+        if (!lastReceiptText) return;
+        const blob = new Blob([lastReceiptText], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const m = lastReceiptText.match(/Receipt #:\s+(\S+)/);
+        a.download = `FarmersChoice_${m ? m[1] : 'receipt'}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        showToast('Receipt downloaded', 'info');
+    }
+
+    // ============================================
+    // EXPORT CSV (today's filtered set)
+    // ============================================
+    function exportCSV() {
+        const q = (document.getElementById('saleSearch').value || '').trim().toLowerCase();
+        const pm = document.getElementById('paymentFilter').value;
+
+        let list = sales.slice();
+        if (pm) list = list.filter(s => s.payment_method === pm);
+        if (q) {
+            list = list.filter(s =>
+                (s.receipt_number || '').toLowerCase().includes(q) ||
+                (s.customer_name || '').toLowerCase().includes(q)
+            );
+        }
+
+        if (!list.length) {
+            showToast('Nothing to export', 'warning');
+            return;
+        }
+
+        const headers = ['Receipt', 'Date', 'Customer', 'Payment', 'Items', 'Total'];
+        const rows = list.map(s => [
+            s.receipt_number || '',
+            new Date(s.sale_date || s.created_at).toLocaleString('en-KE'),
+            s.customer_name || 'Walk-in',
+            s.payment_method || '',
+            s.sale_items ? s.sale_items.length : 0,
+            s.total || 0
+        ]);
+
+        const csv = [headers, ...rows]
+            .map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))
+            .join('\n');
+
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `FarmersChoice_MySales_${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        showToast('CSV exported', 'info');
+    }
+
+    // ============================================
+    // INIT
+    // ============================================
+    async function init() {
+        if (!requireAuth()) return;
+
+        // Refresh permissions from backend
+        await refreshCurrentUser();
+
+        if (window.CONFIG?.APP?.NAME) {
+            const t = document.getElementById('appTitle');
+            if (t) t.textContent = CONFIG.APP.NAME;
+        }
+
+        // Today's date label
+        document.getElementById('pageDate').textContent =
+            '— ' + new Date().toLocaleDateString('en-KE', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' });
+
+        // Nav gating per permission — My Sales has no gate; everyone sees own sales
+        
+        document.getElementById('tabAll').style.display       = hasPerm('sales.view_all')  ? '' : 'none';
+        document.getElementById('tabCredits').style.display   = hasPerm('sales.view_all')  ? '' : 'none';
+        document.getElementById('tabReports').style.display   = hasPerm('reports.view')    ? '' : 'none';
+        document.getElementById('tabLive').style.display      = hasPerm('live.view')       ? '' : 'none';
+        document.getElementById('tabAnalytics').style.display = hasPerm('analytics.view')  ? '' : 'none';
+        document.getElementById('tabUsers').style.display     = hasPerm('users.view')      ? '' : 'none';
+
+        updateUserChip();
+        loadMySales();
+
+        console.log('✅ My Sales page ready');
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

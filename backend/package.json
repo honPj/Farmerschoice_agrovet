@@ -1,0 +1,53 @@
+{
+  "name": "farmerschoice-backend",
+  "version": "1.0.0",
+  "description": "Backend API for FarmersChoice Agrovet POS System - Kenya Edition",
+  "main": "src/app.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "echo \"No linter configured\" && exit 0"
+  },
+  "keywords": [
+    "pos",
+    "agrovet",
+    "farmerschoice",
+    "kenya",
+    "api",
+    "express",
+    "supabase"
+  ],
+  "author": "FarmersChoice Agrovet",
+  "license": "ISC",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "12.3.4",
+      "onFail": "download"
+    }
+  },
+  "packageManager": "pnpm@12.3.4",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=12.0.0"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.115.0",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "exceljs": "^4.4.0",
+    "express": "^5.2.1",
+    "joi": "^18.2.8",
+    "json2csv": "6.0.0-alpha.2",
+    "jsonwebtoken": "^9.0.3",
+    "node-cron": "^4.6.0",
+    "nodemailer": "^10.0.1",
+    "winston": "^3.19.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}

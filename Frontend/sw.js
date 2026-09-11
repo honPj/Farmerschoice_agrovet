@@ -1,155 +1,188 @@
 // ============================================
-// SERVICE WORKER - OFFLINE MODE
+// SERVICE WORKER — FarmersChoice Agrovet
+// Strategy:
+//   • App shell (HTML / JS / CSS) → NETWORK FIRST
+//     (always fetch fresh; fall back to cache only when offline)
+//   • Static assets (images / fonts / CDN) → CACHE FIRST
+//   • API calls → never intercepted
+// This means during development you ALWAYS get fresh files.
 // ============================================
 
-const CACHE_NAME = 'farmerschoice-v1';
+const CACHE_NAME = 'farmerschoice-v2';   // bumped — deletes v1 on activate
 const OFFLINE_URL = 'pos.html';
 
-// Files to cache for offline use
-const FILES_TO_CACHE = [
-  'pos.html',
-  'OIP.webp',
+// Only pre-cache static assets. Do NOT pre-cache HTML/JS,
+// otherwise you risk stale app-shell on first load.
+const STATIC_ASSETS = [
+  'css/shared.css',
+  'assets/OIP.webp',
   'manifest.json',
-  'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@300;400;500;600;700&display=swap',
+  'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap',
   'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js'
 ];
 
-// Install event - cache files
+// ────────────────────────────────────────────
+// INSTALL
+// ────────────────────────────────────────────
 self.addEventListener('install', (event) => {
-  console.log('📦 Service Worker installing...');
+  console.log('📦 SW installing (v2)...');
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('📦 Caching files...');
-        return cache.addAll(FILES_TO_CACHE);
-      })
+      .then((cache) => cache.addAll(STATIC_ASSETS))
       .then(() => {
-        console.log('📦 Cache complete!');
-        return self.skipWaiting();
+        console.log('📦 SW precache complete');
+        return self.skipWaiting();     // activate immediately
       })
-      .catch((error) => {
-        console.error('❌ Cache failed:', error);
+      .catch((err) => console.error('❌ SW precache failed:', err))
+  );
+});
+
+// ────────────────────────────────────────────
+// ACTIVATE — delete any cache that isn't v2
+// ────────────────────────────────────────────
+self.addEventListener('activate', (event) => {
+  console.log('⚡ SW activating (v2)...');
+  event.waitUntil(
+    caches.keys()
+      .then((names) => Promise.all(
+        names.map((name) => {
+          if (name !== CACHE_NAME) {
+            console.log('🗑️ Deleting old cache:', name);
+            return caches.delete(name);
+          }
+        })
+      ))
+      .then(() => {
+        console.log('⚡ SW activated, taking control');
+        return self.clients.claim();   // start controlling open tabs
       })
   );
 });
 
-// Activate event - clean old caches
-self.addEventListener('activate', (event) => {
-  console.log('⚡ Service Worker activating...');
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('🗑️ Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
+// ────────────────────────────────────────────
+// FETCH
+// ────────────────────────────────────────────
+self.addEventListener('fetch', (event) => {
+  const req = event.request;
+
+  // 1. Never touch non-GET or API calls
+  if (req.method !== 'GET' || req.url.includes('/api/')) {
+    return;
+  }
+
+  const url = new URL(req.url);
+
+  // 2. App shell → NETWORK FIRST
+  const isAppShell =
+       req.destination === 'document'
+    || req.destination === 'script'
+    || req.destination === 'style'
+    || url.pathname.endsWith('.html')
+    || url.pathname.endsWith('.js')
+    || url.pathname.endsWith('.css');
+
+  if (isAppShell) {
+    event.respondWith(
+      fetch(req)
+        .then((res) => {
+          // Cache the fresh copy for offline fallback
+          if (res && res.status === 200 && res.type !== 'opaque') {
+            const clone = res.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(req, clone));
           }
+          return res;
         })
-      );
+        .catch(() => {
+          // Network failed → try cache
+          return caches.match(req).then((cached) => {
+            if (cached) return cached;
+            // Final fallback for HTML navigation requests
+            if (req.destination === 'document') {
+              return caches.match(OFFLINE_URL);
+            }
+            return new Response('Offline', { status: 503 });
+          });
+        })
+    );
+    return;
+  }
+
+  // 3. Everything else (images, fonts, CDN) → CACHE FIRST
+  event.respondWith(
+    caches.match(req).then((cached) => {
+      if (cached) return cached;
+
+      return fetch(req)
+        .then((res) => {
+          if (res && res.status === 200) {
+            const clone = res.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(req, clone));
+          }
+          return res;
+        })
+        .catch(() => {
+          // If it's an image, return a transparent pixel? Just 503.
+          return new Response('', { status: 503 });
+        });
     })
   );
 });
 
-// Fetch event - serve from cache or network
-self.addEventListener('fetch', (event) => {
-  const request = event.request;
-  
-  // Skip non-GET requests
-  if (request.method !== 'GET') {
-    event.respondWith(fetch(request));
-    return;
-  }
-  
-  // Try cache first, fallback to network
-  event.respondWith(
-    caches.match(request)
-      .then((cachedResponse) => {
-        if (cachedResponse) {
-          // Return cached version
-          return cachedResponse;
-        }
-        
-        // Not in cache - fetch from network
-        return fetch(request)
-          .then((networkResponse) => {
-            // Cache the new response for next time
-            if (networkResponse && networkResponse.status === 200) {
-              const clone = networkResponse.clone();
-              caches.open(CACHE_NAME)
-                .then((cache) => {
-                  cache.put(request, clone);
-                });
-            }
-            return networkResponse;
-          })
-          .catch(() => {
-            // Network failed - show offline page
-            return caches.match(OFFLINE_URL);
-          });
-      })
-  );
-});
-
-// ============================================
+// ────────────────────────────────────────────
 // PUSH NOTIFICATIONS
-// ============================================
-
-// Push event - display notification
+// ────────────────────────────────────────────
 self.addEventListener('push', (event) => {
-  console.log('📨 Push notification received:', event);
-  
+  console.log('📨 Push received');
   let data = {
     title: 'FarmersChoice Agrovet',
     body: 'New activity!',
-    icon: 'icon-192.png',
-    badge: 'icon-192.png'
+    icon: 'assets/icon-192.png',
+    badge: 'assets/icon-192.png'
   };
-  
   if (event.data) {
-    try {
-      data = event.data.json();
-    } catch (e) {
-      data.body = event.data.text();
-    }
+    try { data = event.data.json(); }
+    catch { data.body = event.data.text(); }
   }
-  
+
   const options = {
     body: data.body,
-    icon: data.icon || 'icon-192.png',
-    badge: data.badge || 'icon-192.png',
+    icon: data.icon || 'assets/icon-192.png',
+    badge: data.badge || 'assets/icon-192.png',
     vibrate: [200, 100, 200],
     data: {
       url: data.url || 'pos.html',
       timestamp: Date.now()
     },
     actions: [
-      {
-        action: 'open',
-        title: '📊 Open POS'
-      },
-      {
-        action: 'dismiss',
-        title: '❌ Dismiss'
-      }
+      { action: 'open',    title: '📊 Open POS' },
+      { action: 'dismiss', title: '❌ Dismiss' }
     ]
   };
-  
+
   event.waitUntil(
     self.registration.showNotification(data.title, options)
   );
 });
 
-// Notification click event
+// ────────────────────────────────────────────
+// NOTIFICATION CLICK
+// ────────────────────────────────────────────
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  
-  if (event.action === 'dismiss') {
-    return;
-  }
-  
+  if (event.action === 'dismiss') return;
+
   const url = event.notification.data?.url || 'pos.html';
-  
+
   event.waitUntil(
-    clients.openWindow(url)
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      // Reuse an existing window if we have one
+      for (const client of list) {
+        if (client.url.includes(url) && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      // Otherwise open a new one
+      if (clients.openWindow) return clients.openWindow(url);
+    })
   );
 });

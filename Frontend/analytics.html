@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FarmersChoice Agrovet — Analytics</title>
+    <link rel="icon" type="image/png" href="assets/OIP.webp">
+    <link rel="stylesheet" href="css/shared.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        .mono { font-family: var(--font-mono); }
+
+        .loading-spinner {
+            display: flex; justify-content: center; align-items: center;
+            padding: 40px; color: var(--text-muted); font-size: 14px;
+        }
+        .loading-spinner::before {
+            content: '';
+            width: 24px; height: 24px;
+            border: 3px solid var(--border-color);
+            border-top: 3px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 12px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .error-banner {
+            background: rgba(220, 38, 38, 0.1);
+            border: 1px solid rgba(220, 38, 38, 0.4);
+            color: #f87171;
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* Comparison KPI cards */
+        .kpi-compare {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 6px;
+            font-size: 11px;
+            font-family: var(--font-mono);
+        }
+        .kpi-compare .kpi-delta {
+            padding: 1px 6px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+        .kpi-compare .kpi-delta.up {
+            background: rgba(46, 204, 113, 0.15);
+            color: var(--green);
+        }
+        .kpi-compare .kpi-delta.down {
+            background: rgba(231, 76, 60, 0.15);
+            color: var(--red);
+        }
+        .kpi-compare .kpi-delta.flat {
+            background: rgba(120, 130, 150, 0.15);
+            color: var(--text-muted);
+        }
+        .kpi-compare .kpi-vs {
+            color: var(--text-muted);
+        }
+
+        /* Chart containers */
+        .chart-container {
+            position: relative;
+            height: 260px;
+            padding: 12px 16px 16px;
+        }
+        @media (max-width: 768px) {
+            .chart-container { height: 220px; }
+        }
+
+        /* Analytics layout rows */
+        .analytics-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        @media (max-width: 900px) {
+            .analytics-row { grid-template-columns: 1fr; }
+        }
+
+        /* Bar list (Top Products, Employee Performance, etc.) */
+        .bar-list { padding: 10px 14px 14px; }
+        .bar-item {
+            margin-bottom: 10px;
+        }
+        .bar-item:last-child { margin-bottom: 0; }
+        .bar-item-head {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            margin-bottom: 3px;
+            gap: 8px;
+            align-items: center;
+        }
+        .bar-item-head .name {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
+            min-width: 0;
+        }
+        .bar-item-head .value {
+            font-family: var(--font-mono);
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+        .bar-item-head .value.green { color: var(--green); }
+        .bar-item-head .value.blue { color: var(--blue); }
+        .bar-item-head .meta {
+            color: var(--text-muted);
+            font-size: 11px;
+            font-family: var(--font-mono);
+            flex-shrink: 0;
+        }
+        .bar-track {
+            background: var(--border-color);
+            border-radius: 3px;
+            height: 5px;
+            overflow: hidden;
+        }
+        .bar-fill {
+            height: 100%;
+            border-radius: 3px;
+            background: var(--accent);
+            transition: width 0.4s ease;
+        }
+        .bar-fill.green { background: var(--green); }
+        .bar-fill.blue  { background: var(--blue); }
+
+        /* Empty state */
+        .empty-mini {
+            padding: 32px 16px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        /* Period selector */
+        .analytics-period {
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            padding: 8px 12px;
+            font-size: 14px;
+            min-width: 140px;
+            outline: none;
+            cursor: pointer;
+        }
+        .analytics-period:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.15);
+        }
+
+        /* vs previous label */
+        .vs-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- HEADER -->
+    <header>
+        <div class="header-left">
+            <div class="header-logo">FC</div>
+            <div>
+                <div class="header-title" id="appTitle">FarmersChoice Agrovet</div>
+                <div class="header-sub" id="headerClock"></div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="theme-toggle-wrapper" onclick="toggleTheme()" role="button" tabindex="0">
+                <span class="toggle-icon" id="themeIcon">🌙</span>
+                <div class="theme-toggle-switch"><div class="toggle-slider"></div></div>
+            </div>
+            <div class="user-chip" id="userChip">
+                <div class="avatar" id="userAvatar">🧑‍💼</div>
+                <span id="userName">User</span>
+                <span style="color:var(--text-muted);font-size:11px;font-family:var(--font-mono);" id="userRole">EMPLOYEE</span>
+            </div>
+            <button class="btn-ghost btn-sm" onclick="handleLogout()">Logout</button>
+        </div>
+    </header>
+
+    <!-- NAV -->
+    <div class="navbar" id="navbar">
+        <a href="pos.html" class="nav-tab">Sell</a>
+        <a href="stock.html" class="nav-tab">Stock</a>
+        <a href="mysales.html" class="nav-tab">My Sales</a>
+        <a href="allsales.html" class="nav-tab" id="tabAll" style="display:none;">All Sales</a>
+         <a href="credits.html" class="nav-tab " id="tabCredits" style="display:none;">Credits</a>
+        <a href="users.html" class="nav-tab" id="tabUsers" style="display:none;">Users</a>
+        <a href="reports.html" class="nav-tab" id="tabReports" style="display:none;">Reports</a>
+        <a href="live.html" class="nav-tab" id="tabLive" style="display:none;">Live</a>
+        <a href="analytics.html" class="nav-tab active" id="tabAnalytics" style="display:none;">Analytics</a>
+    </div>
+
+    <!-- PAGE -->
+    <div class="page">
+        <div class="page-header">
+            <div class="page-title">
+                Analytics Dashboard
+                <span id="periodRange" class="vs-label" style="margin-left:10px;"></span>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <select id="analyticsPeriod" class="analytics-period" onchange="onPeriodChange()" aria-label="Analytics period">
+                    <option value="7">Last 7 days</option>
+                    <option value="30" selected>Last 30 days</option>
+                    <option value="90">Last 90 days</option>
+                </select>
+                <button class="btn-ghost btn-sm" onclick="loadAnalytics(true)" title="Refresh">🔄 Refresh</button>
+            </div>
+        </div>
+
+        <div id="errorArea"></div>
+
+        <div id="analyticsBody">
+            <div class="loading-spinner">Loading analytics...</div>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="js/config.js"></script>
+    <script src="js/env.js"></script>
+    <script src="js/shared.js"></script>
+
+    <script>
+    // ============================================
+    // STATE
+    // ============================================
+    let data = null;
+    let charts = {};        // holds Chart.js instances keyed by canvas id
+    const SESSION_KEY = 'fc_analytics_period';
+
+    // ============================================
+    // HELPERS
+    // ============================================
+    function escapeHtml(s) {
+        return String(s ?? '').replace(/[&<>"']/g, c => ({
+            '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+        }[c]));
+    }
+
+    function getInitials(name) {
+        return (name || 'U').trim().split(/\s+/).map(x => x[0]).slice(0, 2).join('').toUpperCase();
+    }
+
+    function fmtDate(iso) {
+        if (!iso) return '—';
+        return new Date(iso + 'T00:00:00').toLocaleDateString('en-KE', {
+            day: 'numeric', month: 'short'
+        });
+    }
+
+    function getPeriodDays() {
+        return parseInt(document.getElementById('analyticsPeriod').value) || 30;
+    }
+
+    function deltaBadge(pct) {
+        if (pct > 0.5) return `<span class="kpi-delta up">▲ ${pct.toFixed(1)}%</span>`;
+        if (pct < -0.5) return `<span class="kpi-delta down">▼ ${Math.abs(pct).toFixed(1)}%</span>`;
+        return `<span class="kpi-delta flat">— 0.0%</span>`;
+    }
+
+    // Chart theme-aware colors (reads current theme)
+    function chartColors() {
+        const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+        return {
+            grid: isLight ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.06)',
+            label: isLight ? '#3d4454' : '#a0aab8',
+            tooltipBg: isLight ? '#1a1f2e' : '#f0f2f8',
+            tooltipFg: isLight ? '#ffffff' : '#1a1f2e'
+        };
+    }
+
+    function destroyChart(key) {
+        if (charts[key]) { charts[key].destroy(); delete charts[key]; }
+    }
+
+    // ============================================
+    // LOAD
+    // ============================================
+    async function loadAnalytics(isManual = false) {
+        const days = getPeriodDays();
+        sessionStorage.setItem(SESSION_KEY, String(days));
+
+        const body = document.getElementById('analyticsBody');
+        const errorArea = document.getElementById('errorArea');
+        errorArea.innerHTML = '';
+
+        if (!data || isManual) {
+            body.innerHTML = '<div class="loading-spinner">Loading analytics...</div>';
+        }
+        if (isManual) showToast('Refreshing...', 'info');
+
+        try {
+            data = await fetchAnalyticsSummary(days);
+            renderAll();
+            if (isManual) showToast('Analytics refreshed', 'success');
+        } catch (err) {
+            console.error('loadAnalytics failed:', err);
+            body.innerHTML = '';
+            errorArea.innerHTML = `
+                <div class="error-banner">
+                    <div>
+                        <strong>Could not load analytics.</strong><br>
+                        <span style="font-size:13px;">${escapeHtml(err.message || 'Unknown error')}</span>
+                    </div>
+                    <button class="btn-ghost btn-sm" onclick="loadAnalytics(true)">Retry</button>
+                </div>`;
+            if (isManual) showToast('Refresh failed', 'error');
+        }
+    }
+
+    function onPeriodChange() {
+        loadAnalytics(false);
+    }
+
+    // ============================================
+    // RENDER ALL
+    // ============================================
+    function renderAll() {
+        const body = document.getElementById('analyticsBody');
+        const p = data.period || {};
+        const s = data.summary || {};
+
+        // Update range label
+        const rangeEl = document.getElementById('periodRange');
+        if (rangeEl && p.start_date && p.end_date) {
+            rangeEl.textContent = `${fmtDate(p.start_date)} → ${fmtDate(p.end_date)}`;
+        }
+
+        // If literally no data
+        if ((s.total_transactions || 0) === 0) {
+            body.innerHTML = `
+                <div class="panel">
+                    <div class="empty-mini" style="padding:60px 20px;">
+                        <div style="font-size:40px;opacity:0.5;margin-bottom:14px;">📊</div>
+                        <div style="font-size:16px;color:var(--text-primary);font-weight:600;margin-bottom:6px;">
+                            No sales in this period
+                        </div>
+                        <div>Try a different time period, or make some sales first.</div>
+                    </div>
+                </div>`;
+            return;
+        }
+
+        // Build full layout
+        body.innerHTML = `
+            <!-- Row 1: KPI cards -->
+            <div class="stats-grid" id="analyticsStats"></div>
+
+            <!-- Row 2: Revenue trend + Category breakdown -->
+            <div class="analytics-row">
+                <div class="panel">
+                    <div class="panel-header">Revenue Trend (vs previous period)</div>
+                    <div class="chart-container">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+                <div class="panel">
+                    <div class="panel-header">Category Breakdown</div>
+                    <div class="chart-container">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Row 3: Hourly + Day-of-week -->
+            <div class="analytics-row">
+                <div class="panel">
+                    <div class="panel-header">Hourly Distribution</div>
+                    <div class="chart-container">
+                        <canvas id="hourlyChart"></canvas>
+                    </div>
+                </div>
+                <div class="panel">
+                    <div class="panel-header">Day-of-Week Pattern</div>
+                    <div class="chart-container">
+                        <canvas id="dowChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Row 4: Top products + Payment breakdown -->
+            <div class="analytics-row">
+                <div class="panel">
+                    <div class="panel-header">Top Products</div>
+                    <div class="bar-list" id="topProductsList"></div>
+                </div>
+                <div class="panel">
+                    <div class="panel-header">Payment Methods</div>
+                    <div class="chart-container" style="height:220px;">
+                        <canvas id="paymentChart"></canvas>
+                    </div>
+                    <div class="bar-list" id="paymentList" style="padding-top:0;"></div>
+                </div>
+            </div>
+
+            <!-- Row 5: Employee performance -->
+            <div class="panel">
+                <div class="panel-header">Employee Performance</div>
+                <div class="bar-list" id="employeeList"></div>
+            </div>
+        `;
+
+        renderKPIs();
+        renderTrendChart();
+        renderCategoryChart();
+        renderHourlyChart();
+        renderDowChart();
+        renderTopProducts();
+        renderPaymentChart();
+        renderPaymentList();
+        renderEmployeeList();
+    }
+
+    // ============================================
+    // KPI CARDS
+    // ============================================
+    function renderKPIs() {
+        const s = data.summary || {};
+        const ch = s.change_pct || {};
+        const prev = s.previous_period || {};
+
+        const cards = [
+            {
+                label: 'Total Revenue',
+                value: formatCurrency(s.total_revenue || 0),
+                color: 'var(--green)',
+                delta: ch.revenue || 0,
+                prevVal: formatCurrency(prev.total_revenue || 0)
+            },
+            {
+                label: 'Transactions',
+                value: (s.total_transactions || 0).toLocaleString(),
+                color: 'var(--accent)',
+                delta: ch.transactions || 0,
+                prevVal: (prev.total_transactions || 0).toLocaleString()
+            },
+            {
+                label: 'Avg Ticket',
+                value: formatCurrency(s.avg_ticket || 0),
+                color: 'var(--blue)',
+                delta: ch.avg_ticket || 0,
+                prevVal: formatCurrency(prev.avg_ticket || 0)
+            },
+            {
+                label: 'Total Profit',
+                value: formatCurrency(
+                    (data.top_products || []).reduce((sum, p) => sum + (p.profit || 0), 0)
+                ),
+                color: 'var(--purple)',
+                delta: null,
+                prevVal: null
+            }
+        ];
+
+        document.getElementById('analyticsStats').innerHTML = cards.map(c => `
+            <div class="stat-card">
+                <div class="stat-label">${escapeHtml(c.label)}</div>
+                <div class="stat-value" style="color:${c.color};">${c.value}</div>
+                ${c.delta !== null ? `
+                    <div class="kpi-compare">
+                        ${deltaBadge(c.delta)}
+                        <span class="kpi-vs">vs ${c.prevVal} last period</span>
+                    </div>
+                ` : ''}
+            </div>
+        `).join('');
+    }
+
+    // ============================================
+    // REVENUE TREND CHART (dual line)
+    // ============================================
+    function renderTrendChart() {
+        destroyChart('trendChart');
+        const canvas = document.getElementById('trendChart');
+        if (!canvas) return;
+
+        const days = getPeriodDays();
+        const cur = data.daily_trend || [];
+        const c = chartColors();
+
+        // Current period: dates as-is
+        const curLabels = cur.map(d => fmtDate(d.date));
+        const curValues = cur.map(d => d.revenue || 0);
+
+        // Previous period: we don't have day-by-day previous data, so we just show current
+        // (a nice-to-have next version would fetch prev daily too; for now single line)
+        // NOTE: we DO have prev summary total, so we could draw a flat line if we wanted.
+        // Skipping for clarity.
+
+        charts.trendChart = new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels: curLabels,
+                datasets: [{
+                    label: 'Revenue',
+                    data: curValues,
+                    borderColor: '#2e7d32',
+                    backgroundColor: 'rgba(46,125,50,0.15)',
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: days <= 30 ? 3 : 0,
+                    pointBackgroundColor: '#2e7d32',
+                    pointHoverRadius: 5,
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { intersect: false, mode: 'index' },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: c.tooltipBg,
+                        titleColor: c.tooltipFg,
+                        bodyColor: c.tooltipFg,
+                        callbacks: {
+                            label: ctx => 'Revenue: ' + formatCurrency(ctx.parsed.y)
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: {
+                            color: c.label,
+                            font: { size: 10 },
+                            maxRotation: 45,
+                            autoSkip: true,
+                            maxTicksLimit: 12
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: c.grid },
+                        ticks: {
+                            color: c.label,
+                            font: { size: 10 },
+                            callback: v => 'KSh ' + (v >= 1000 ? (v/1000).toFixed(0) + 'k' : v)
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // ============================================
+    // CATEGORY BREAKDOWN (doughnut)
+    // ============================================
+    function renderCategoryChart() {
+        destroyChart('categoryChart');
+        const canvas = document.getElementById('categoryChart');
+        if (!canvas) return;
+
+        const items = (data.category_breakdown || []).slice(0, 8);
+        if (!items.length) {
+            canvas.parentElement.innerHTML = '<div class="empty-mini">No category data.</div>';
+            return;
+        }
+
+        const c = chartColors();
+        const palette = [
+            '#2e7d32', '#2980b9', '#8e44ad', '#f39c12', '#e74c3c',
+            '#16a085', '#c0392b', '#27ae60'
+        ];
+
+        charts.categoryChart = new Chart(canvas, {
+            type: 'doughnut',
+            data: {
+                labels: items.map(x => x.category_name),
+                datasets: [{
+                    data: items.map(x => x.revenue || 0),
+                    backgroundColor: items.map((_, i) => palette[i % palette.length]),
+                    borderWidth: 2,
+                    borderColor: document.documentElement.getAttribute('data-theme') === 'light' ? '#ffffff' : '#1e2330'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: { color: c.label, font: { size: 11 }, boxWidth: 10, padding: 8 }
+                    },
+                    tooltip: {
+                        backgroundColor: c.tooltipBg,
+                        titleColor: c.tooltipFg,
+                        bodyColor: c.tooltipFg,
+                        callbacks: {
+                            label: ctx => {
+                                const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                                const pct = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
+                                return `${ctx.label}: ${formatCurrency(ctx.parsed)} (${pct}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // ============================================
+    // HOURLY DISTRIBUTION
+    // ============================================
+    function renderHourlyChart() {
+        destroyChart('hourlyChart');
+        const canvas = document.getElementById('hourlyChart');
+        if (!canvas) return;
+
+        const items = data.hourly_distribution || [];
+        const c = chartColors();
+
+        // Only show business hours (first to last non-zero, min 7am-8pm)
+        let firstHour = 7, lastHour = 20;
+        for (let h = 0; h < 24; h++) {
+            if ((items[h]?.revenue || 0) > 0) {
+                if (h < firstHour) firstHour = h;
+                if (h > lastHour) lastHour = h;
+            }
+        }
+        firstHour = Math.max(0, firstHour - 1);
+        lastHour = Math.min(23, lastHour + 1);
+
+        const slice = items.slice(firstHour, lastHour + 1);
+
+        charts.hourlyChart = new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: slice.map(x => String(x.hour).padStart(2, '0') + ':00'),
+                datasets: [{
+                    label: 'Revenue',
+                    data: slice.map(x => x.revenue || 0),
+                    backgroundColor: slice.map(x => (x.revenue || 0) > 0 ? '#2e7d32' : 'rgba(46,125,50,0.25)'),
+                    borderRadius: 3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: c.tooltipBg,
+                        titleColor: c.tooltipFg,
+                        bodyColor: c.tooltipFg,
+                        callbacks: {
+                            label: ctx => 'Revenue: ' + formatCurrency(ctx.parsed.y)
+                        }
+                    }
+                },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: c.label, font: { size: 10 } } },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: c.grid },
+                        ticks: {
+                            color: c.label, font: { size: 10 },
+                            callback: v => 'KSh ' + (v >= 1000 ? (v/1000).toFixed(0) + 'k' : v)
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // ============================================
+    // DAY-OF-WEEK
+    // ============================================
+    function renderDowChart() {
+        destroyChart('dowChart');
+        const canvas = document.getElementById('dowChart');
+        if (!canvas) return;
+
+        const items = data.day_of_week || [];
+        const c = chartColors();
+        const maxRev = Math.max(...items.map(x => x.revenue || 0), 1);
+
+        charts.dowChart = new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: items.map(x => x.day.slice(0, 3)),
+                datasets: [{
+                    label: 'Revenue',
+                    data: items.map(x => x.revenue || 0),
+                    backgroundColor: items.map(x =>
+                        (x.revenue || 0) === maxRev ? '#2e7d32' : 'rgba(46,125,50,0.55)'
+                    ),
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: c.tooltipBg,
+                        titleColor: c.tooltipFg,
+                        bodyColor: c.tooltipFg,
+                        callbacks: {
+                            label: ctx => 'Revenue: ' + formatCurrency(ctx.parsed.y)
+                        }
+                    }
+                },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: c.label, font: { size: 11 } } },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: c.grid },
+                        ticks: {
+                            color: c.label, font: { size: 10 },
+                            callback: v => 'KSh ' + (v >= 1000 ? (v/1000).toFixed(0) + 'k' : v)
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // ============================================
+    // TOP PRODUCTS (bar list)
+    // ============================================
+    function renderTopProducts() {
+        const wrap = document.getElementById('topProductsList');
+        const items = (data.top_products || []).slice(0, 8);
+        if (!items.length) {
+            wrap.innerHTML = '<div class="empty-mini">No products sold in this period.</div>';
+            return;
+        }
+
+        const maxRev = items[0].revenue || 1;
+
+        wrap.innerHTML = items.map((p, i) => `
+            <div class="bar-item">
+                <div class="bar-item-head">
+                    <span class="name">
+                        <span class="mono" style="color:var(--text-muted);font-size:11px;">#${i + 1}</span>
+                        ${escapeHtml(p.product_name || 'Unknown')}
+                    </span>
+                    <span class="meta">${p.qty} unit${p.qty === 1 ? '' : 's'}</span>
+                    <span class="value green">${formatCurrency(p.revenue || 0)}</span>
+                </div>
+                <div class="bar-track">
+                    <div class="bar-fill green" style="width:${((p.revenue / maxRev) * 100).toFixed(0)}%;"></div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // ============================================
+    // PAYMENT (chart + list)
+    // ============================================
+    function renderPaymentChart() {
+        destroyChart('paymentChart');
+        const canvas = document.getElementById('paymentChart');
+        if (!canvas) return;
+
+        const items = data.payment_breakdown || [];
+        if (!items.length) {
+            canvas.parentElement.innerHTML = '<div class="empty-mini">No payment data.</div>';
+            return;
+        }
+
+        const c = chartColors();
+        const colorMap = {
+            Cash: '#2ecc71',
+            'M-Pesa': '#3498db',
+            Bank: '#9b59b6',
+            Credit: '#f39c12'
+        };
+
+        charts.paymentChart = new Chart(canvas, {
+            type: 'doughnut',
+            data: {
+                labels: items.map(x => x.method),
+                datasets: [{
+                    data: items.map(x => x.revenue || 0),
+                    backgroundColor: items.map(x => colorMap[x.method] || '#666'),
+                    borderWidth: 2,
+                    borderColor: document.documentElement.getAttribute('data-theme') === 'light' ? '#ffffff' : '#1e2330'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '60%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: c.tooltipBg,
+                        titleColor: c.tooltipFg,
+                        bodyColor: c.tooltipFg,
+                        callbacks: {
+                            label: ctx => {
+                                const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                                const pct = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
+                                return `${ctx.label}: ${formatCurrency(ctx.parsed)} (${pct}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function renderPaymentList() {
+        const wrap = document.getElementById('paymentList');
+        const items = data.payment_breakdown || [];
+        if (!items.length) { wrap.innerHTML = ''; return; }
+
+        const total = items.reduce((s, x) => s + (x.revenue || 0), 0);
+
+        wrap.innerHTML = items.map(x => {
+            const pct = total > 0 ? ((x.revenue / total) * 100).toFixed(1) : 0;
+            return `
+                <div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;">
+                    <span>
+                        <span class="pill ${getPaymentPillClass(x.method)}" style="font-size:10px;">${escapeHtml(x.method)}</span>
+                        <span style="color:var(--text-muted);font-family:var(--font-mono);margin-left:8px;">
+                            ×${x.count}
+                        </span>
+                    </span>
+                    <span class="mono" style="color:var(--green);">
+                        ${formatCurrency(x.revenue)} <span style="color:var(--text-muted);">(${pct}%)</span>
+                    </span>
+                </div>`;
+        }).join('');
+    }
+
+    // ============================================
+    // EMPLOYEE PERFORMANCE (bar list)
+    // ============================================
+    function renderEmployeeList() {
+        const wrap = document.getElementById('employeeList');
+        const items = data.employee_performance || [];
+        if (!items.length) {
+            wrap.innerHTML = '<div class="empty-mini">No staff sales in this period.</div>';
+            return;
+        }
+
+        const maxRev = items[0].revenue || 1;
+
+        wrap.innerHTML = items.map(e => `
+            <div class="bar-item">
+                <div class="bar-item-head">
+                    <span class="name">
+                        <span class="pill ${getRolePillClass(e.role)}" style="font-size:9px;margin-right:6px;">
+                            ${escapeHtml((e.role || '').toUpperCase())}
+                        </span>
+                        ${escapeHtml(e.user_name || 'Unknown')}
+                    </span>
+                    <span class="meta">${e.count} sale${e.count === 1 ? '' : 's'} · avg ${formatCurrency((e.revenue / e.count) || 0)}</span>
+                    <span class="value blue">${formatCurrency(e.revenue || 0)}</span>
+                </div>
+                <div class="bar-track">
+                    <div class="bar-fill blue" style="width:${((e.revenue / maxRev) * 100).toFixed(0)}%;"></div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // ============================================
+    // THEME REACTIVITY
+    // ============================================
+    // When theme changes, re-render charts so text/grid colors update
+    function observeThemeChanges() {
+        const target = document.documentElement;
+        const observer = new MutationObserver((mutations) => {
+            for (const m of mutations) {
+                if (m.attributeName === 'data-theme' && data) {
+                    // Re-render all charts with new theme colors
+                    renderTrendChart();
+                    renderCategoryChart();
+                    renderHourlyChart();
+                    renderDowChart();
+                    renderPaymentChart();
+                }
+            }
+        });
+        observer.observe(target, { attributes: true, attributeFilter: ['data-theme'] });
+    }
+
+    // ============================================
+    // INIT
+    // ============================================
+    async function init() {
+        if (!requireAuth()) return;
+
+        // Refresh permissions from backend
+        await refreshCurrentUser();
+
+        // Gate: need analytics.view
+        if (!hasPerm('analytics.view')) {
+            showToast('Access denied — you do not have analytics permission', 'error');
+            setTimeout(() => window.location.href = 'pos.html', 800);
+            return;
+        }
+
+        if (window.CONFIG?.APP?.NAME) {
+            const t = document.getElementById('appTitle');
+            if (t) t.textContent = CONFIG.APP.NAME;
+        }
+
+        // Nav gating per permission
+        document.getElementById('tabAll').style.display       = hasPerm('sales.view_all')  ? '' : 'none';
+        
+        document.getElementById('tabCredits').style.display   = hasPerm('sales.view_all')  ? '' : 'none';
+        document.getElementById('tabReports').style.display   = hasPerm('reports.view')    ? '' : 'none';
+
+        document.getElementById('tabLive').style.display      = hasPerm('live.view')       ? '' : 'none';
+        document.getElementById('tabAnalytics').style.display = hasPerm('analytics.view')  ? '' : 'none';
+        document.getElementById('tabUsers').style.display     = hasPerm('users.view')      ? '' : 'none';
+
+        updateUserChip();
+
+        // Restore last period from session
+        const savedPeriod = sessionStorage.getItem(SESSION_KEY);
+        if (savedPeriod && ['7', '30', '90'].includes(savedPeriod)) {
+            document.getElementById('analyticsPeriod').value = savedPeriod;
+        }
+
+        observeThemeChanges();
+        loadAnalytics(false);
+
+        console.log('✅ Analytics page ready');
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
