@@ -1,0 +1,2203 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FarmersChoice Agrovet — Reports</title>
+    <link rel="icon" type="image/png" href="assets/OIP.webp">
+    <link rel="stylesheet" href="css/shared.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        .mono { font-family: var(--font-mono); }
+
+        .current-report-banner {
+            display: flex; align-items: center; gap: 14px;
+            background: var(--bg-surface); border: 1px solid var(--border-color);
+            border-left: 4px solid var(--accent); border-radius: var(--radius-sm);
+            padding: 14px 18px; margin-bottom: 14px;
+        }
+        .current-report-banner .cr-icon { font-size: 24px; }
+        .current-report-banner .cr-info { flex: 1; }
+        .current-report-banner .cr-title { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+        .current-report-banner .cr-filters { font-size: 12px; color: var(--text-muted); font-family: var(--font-mono); margin-top: 2px; }
+
+        .report-empty { padding: 60px 20px; text-align: center; color: var(--text-muted); font-size: 14px; }
+        .report-empty .re-icon { font-size: 48px; margin-bottom: 14px; opacity: 0.5; }
+        .report-empty .re-title { font-size: 16px; color: var(--text-primary); font-weight: 600; margin-bottom: 6px; }
+
+        .export-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+
+        .report-table-wrap { overflow-x: auto; border-radius: var(--radius-sm); border: 1px solid var(--border-color); }
+        table.report-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        table.report-table th {
+            background: var(--bg-surface); text-align: left; padding: 10px 14px;
+            font-family: var(--font-mono); font-size: 11px;
+            text-transform: uppercase; letter-spacing: 0.4px;
+            color: var(--text-muted); border-bottom: 1px solid var(--border-color); white-space: nowrap;
+        }
+        table.report-table td { padding: 10px 14px; border-bottom: 1px solid var(--border-color); }
+        table.report-table tbody tr:hover { background: rgba(46, 125, 50, 0.04); }
+        table.report-table tfoot td {
+            background: var(--bg-surface); font-weight: 600;
+            border-top: 2px solid var(--accent); font-family: var(--font-mono);
+        }
+        table.report-table .num { font-family: var(--font-mono); text-align: right; }
+        table.report-table .green { color: var(--green); }
+        table.report-table .red { color: var(--red); }
+        table.report-table .muted { color: var(--text-muted); }
+
+        .chart-wrap {
+            background: var(--bg-surface); border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm); padding: 16px; margin-bottom: 14px;
+        }
+        .chart-title { font-size: 13px; font-weight: 600; margin-bottom: 10px; color: var(--text-secondary); }
+
+        .days-badge {
+            display: inline-block; padding: 2px 8px;
+            border-radius: 10px; font-size: 10px;
+            font-weight: 600; font-family: var(--font-mono);
+            white-space: nowrap;
+        }
+        .days-badge.overdue  { background: rgba(231, 76, 60, 0.15); color: var(--red); }
+        .days-badge.today    { background: rgba(231, 76, 60, 0.25); color: var(--red); }
+        .days-badge.soon     { background: rgba(243, 156, 18, 0.15); color: var(--yellow); }
+        .days-badge.upcoming { background: rgba(46, 204, 113, 0.15); color: var(--green); }
+        .days-badge.nodue    { background: rgba(120, 130, 150, 0.15); color: var(--text-muted); }
+
+        .sub-section-title {
+            margin: 20px 0 8px;
+            font-size: 12px; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.5px;
+            font-family: var(--font-mono);
+        }
+
+        .source-pill {
+            font-size: 10px;
+            padding: 2px 7px;
+            border-radius: 8px;
+            font-family: var(--font-mono);
+            white-space: nowrap;
+        }
+        .source-pill.catalog { background: rgba(155, 89, 182, 0.15); color: var(--purple); }
+        .source-pill.manual  { background: rgba(52, 152, 219, 0.15); color: var(--blue); }
+
+        /* ─── Picker modal ─── */
+        #reportPickerModal .modal {
+            max-width: 1180px; width: 96%; max-height: 92vh;
+            display: flex; flex-direction: column; padding: 0;
+        }
+        #reportPickerModal .modal-header {
+            padding: 16px 22px; border-bottom: 1px solid var(--border-color);
+        }
+        #reportPickerModal .modal-header h3 { font-size: 20px; font-weight: 500; letter-spacing: -0.2px; }
+        #reportPickerModal .modal-body {
+            padding: 0; display: grid;
+            grid-template-columns: 1fr 380px;
+            overflow: hidden; flex: 1; min-height: 0;
+        }
+
+        .picker-left { display: flex; flex-direction: column; min-height: 0; }
+        .picker-search { padding: 14px 22px; border-bottom: 1px solid var(--border-color); }
+        .picker-search input {
+            width: 100%; background: var(--input-bg);
+            border: 1px solid var(--border-color); border-radius: var(--radius-sm);
+            padding: 10px 14px; color: var(--text-primary); font-size: 14px; outline: none;
+        }
+        .picker-list { overflow-y: auto; flex: 1; padding: 6px 0 12px; }
+        .picker-group { padding: 14px 22px 6px; font-size: 13px; color: var(--text-secondary); }
+        .picker-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 9px 22px; cursor: pointer; font-size: 14px;
+            transition: background 0.15s; border-left: 3px solid transparent;
+        }
+        .picker-item:hover { background: rgba(46, 125, 50, 0.06); }
+        .picker-item.selected {
+            background: rgba(46, 125, 50, 0.13); border-left-color: var(--accent);
+            color: var(--accent); font-weight: 500;
+        }
+        .picker-item.disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+        .picker-item .pi-icon { width: 20px; text-align: center; font-size: 16px; }
+        .picker-item .pi-badge {
+            margin-left: auto; font-size: 10px; font-family: var(--font-mono);
+            padding: 2px 7px; border-radius: 8px;
+            background: var(--bg-surface); color: var(--text-muted);
+        }
+
+        .picker-right {
+            padding: 18px 20px 20px; overflow-y: auto;
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--border-color);
+        }
+        .picker-right h4 {
+            font-size: 20px; font-weight: 400; color: var(--text-primary);
+            letter-spacing: -0.2px; margin-bottom: 16px;
+        }
+        .filter-section-label {
+            font-size: 13px; color: var(--text-secondary); margin: 12px 0 6px;
+        }
+        .filter-section-label:first-of-type { margin-top: 0; }
+        .filter-group { margin-bottom: 10px; }
+        .filter-group input,
+        .filter-group select {
+            width: 100%; background: var(--input-bg);
+            border: 1px solid var(--border-color); border-radius: 2px;
+            padding: 8px 10px; color: var(--text-primary);
+            font-size: 14px; outline: none; height: 34px;
+        }
+        .filter-group input:focus,
+        .filter-group select:focus {
+            border-color: #4a90c2; box-shadow: 0 0 0 1px #4a90c2;
+        }
+        .filter-hint {
+            font-size: 12px; color: var(--text-muted);
+            padding: 10px 12px; background: var(--bg-primary);
+            border-radius: 3px; text-align: center;
+        }
+        .filter-date-range {
+            display: flex; align-items: center; gap: 6px;
+            background: var(--input-bg); border: 1px solid var(--border-color);
+            border-radius: 2px; padding: 0 10px; height: 34px;
+        }
+        .filter-date-range .cal-icon { font-size: 14px; color: var(--text-muted); }
+        .filter-date-range input {
+            border: none !important; background: transparent !important;
+            padding: 0 !important; height: auto !important;
+            flex: 1; color: var(--text-primary);
+            font-family: var(--font-mono); font-size: 13px;
+        }
+        .filter-date-range input:focus { box-shadow: none !important; outline: none; }
+
+        .date-preset-row {
+            display: flex; gap: 4px; margin-bottom: 8px; flex-wrap: wrap;
+        }
+        .date-preset-row button {
+            flex: 1; min-width: 60px;
+            padding: 6px 8px; border-radius: 3px;
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            font-size: 12px; cursor: pointer;
+            transition: all 0.15s;
+            font-family: var(--font-family);
+        }
+        .date-preset-row button:hover {
+            border-color: var(--accent); color: var(--accent);
+        }
+        .date-preset-row button.active {
+            background: rgba(46, 125, 50, 0.15);
+            border-color: var(--accent); color: var(--accent);
+            font-weight: 500;
+        }
+
+        .filter-actions {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 8px; margin-top: 18px;
+        }
+        .filter-actions .action-btn {
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 10px 14px; border-radius: 2px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-surface); color: var(--text-primary);
+            font-size: 14px; cursor: pointer; transition: all 0.15s;
+            font-family: var(--font-family); height: 40px;
+        }
+        .filter-actions .action-btn:hover {
+            background: var(--bg-card); border-color: var(--accent);
+        }
+        .filter-actions .action-primary {
+            border-color: var(--accent);
+            background: rgba(46, 125, 50, 0.08);
+            color: var(--accent);
+        }
+        .filter-actions .action-primary:hover { background: rgba(46, 125, 50, 0.18); }
+
+        .week-nav {
+            display: flex; align-items: center; gap: 8px; margin: 8px 0 6px;
+        }
+        .week-nav button {
+            background: var(--input-bg); border: 1px solid var(--border-color);
+            color: var(--text-primary); width: 32px; height: 34px;
+            border-radius: 2px; cursor: pointer; font-size: 14px;
+        }
+        .week-nav button:hover { border-color: var(--accent); color: var(--accent); }
+        .week-nav .week-label {
+            flex: 1; text-align: center;
+            font-family: var(--font-mono); font-size: 13px;
+            color: var(--text-secondary);
+        }
+        .week-hint {
+            font-size: 11px; color: var(--text-muted);
+            font-family: var(--font-mono); margin-top: 2px;
+        }
+
+        @media print {
+            header, .navbar, .page-header button,
+            .export-bar, .modal, .toast-container,
+            .theme-toggle-wrapper, .user-chip,
+            .current-report-banner button, .no-print { display: none !important; }
+            body, .page { background: #fff !important; color: #000 !important; padding: 0 !important; }
+            .current-report-banner {
+                background: #f5f5f5 !important; border-color: #ccc !important;
+                color: #000 !important; margin-bottom: 12px;
+            }
+            table.report-table th { background: #eee !important; color: #000 !important; border-color: #ccc !important; }
+            table.report-table td { border-color: #ddd !important; color: #000 !important; }
+            table.report-table tfoot td { background: #f0f0f0 !important; }
+            .chart-wrap { page-break-inside: avoid; }
+            .stat-card { background: #fff !important; border-color: #ccc !important; color: #000 !important; }
+        }
+
+        @media (max-width: 900px) {
+            #reportPickerModal .modal-body { grid-template-columns: 1fr; }
+            .picker-left { max-height: 40vh; }
+            .picker-right { border-left: none; border-top: 1px solid var(--border-color); }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-left">
+            <div class="header-logo">FC</div>
+            <div>
+                <div class="header-title" id="appTitle">FarmersChoice Agrovet</div>
+                <div class="header-sub" id="headerClock"></div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="theme-toggle-wrapper" onclick="toggleTheme()" role="button" tabindex="0" aria-label="Toggle theme">
+                <span class="toggle-icon" id="themeIcon">🌙</span>
+                <div class="theme-toggle-switch"><div class="toggle-slider"></div></div>
+            </div>
+            <div class="user-chip" id="userChip">
+                <div class="avatar" id="userAvatar">🧑‍💼</div>
+                <span id="userName">User</span>
+                <span style="color:var(--text-muted);font-size:11px;font-family:var(--font-mono);" id="userRole">EMPLOYEE</span>
+            </div>
+            <button class="btn-ghost btn-sm" onclick="handleLogout()">Logout</button>
+        </div>
+    </header>
+
+    <div class="navbar" id="navbar">
+        <a href="pos.html" class="nav-tab">Sell</a>
+        <a href="stock.html" class="nav-tab">Stock</a>
+        <a href="mysales.html" class="nav-tab">My Sales</a>
+        <a href="allsales.html" class="nav-tab" id="tabAll" style="display:none;">All Sales</a>
+        <a href="credits.html" class="nav-tab" id="tabCredits" style="display:none;">Credits</a>
+        <a href="users.html" class="nav-tab" id="tabUsers" style="display:none;">Users</a>
+        <a href="reports.html" class="nav-tab active" id="tabReports" style="display:none;">Reports</a>
+        <a href="live.html" class="nav-tab" id="tabLive" style="display:none;">Live</a>
+        <a href="analytics.html" class="nav-tab" id="tabAnalytics" style="display:none;">Analytics</a>
+    </div>
+
+    <div class="page">
+        <div class="page-header">
+            <div class="page-title">Reports</div>
+            <div style="display:flex;gap:8px;">
+                <button class="btn-primary-solid btn-sm" onclick="openPicker()">📋 Choose Report</button>
+                <button class="btn-ghost btn-sm" onclick="reloadCurrentReport()" title="Refresh">🔄</button>
+            </div>
+        </div>
+
+        <div id="errorArea"></div>
+
+        <div id="currentBanner" class="current-report-banner" style="display:none;">
+            <div class="cr-icon" id="crIcon">📊</div>
+            <div class="cr-info">
+                <div class="cr-title" id="crTitle">Report</div>
+                <div class="cr-filters" id="crFilters"></div>
+            </div>
+            <button class="btn-ghost btn-sm no-print" onclick="openPicker()">Change</button>
+        </div>
+
+        <div class="export-bar" id="exportBar" style="display:none;">
+            <button class="btn-ghost btn-sm" onclick="doExport('csv')">⬇️ CSV</button>
+            <button class="btn-ghost btn-sm" onclick="doExport('excel')">📊 Excel</button>
+            <button class="btn-ghost btn-sm" onclick="window.print()">🖨️ Print / Save as PDF</button>
+        </div>
+
+        <div id="reportContent">
+            <div class="report-empty">
+                <div class="re-icon">📊</div>
+                <div class="re-title">No report selected</div>
+                <div>Click <strong>Choose Report</strong> to begin.</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="overlay" id="reportPickerModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Select Report</h3>
+                <button class="btn-ghost btn-sm" onclick="closeModal('reportPickerModal')">Close</button>
+            </div>
+            <div class="modal-body">
+                <div class="picker-left">
+                    <div class="picker-search">
+                        <input type="text" id="pickerSearch" placeholder="Search reports" oninput="renderPickerList()" />
+                    </div>
+                    <div class="picker-list" id="pickerList"></div>
+                </div>
+                <div class="picker-right">
+                    <h4>Filter</h4>
+                    <div id="pickerFilters"></div>
+                    <div class="filter-actions">
+                        <button class="action-btn action-primary" onclick="confirmPicker()">
+                            🔍 Show report
+                        </button>
+                        <button class="action-btn" onclick="window.print()">
+                            🖨️ Print
+                        </button>
+                        <button class="action-btn" onclick="doExport('excel')">
+                            📊 Excel
+                        </button>
+                        <button class="action-btn" onclick="doExport('csv')">
+                            📄 CSV
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="js/config.js"></script>
+    <script src="js/env.js"></script>
+    <script src="js/shared.js"></script>
+
+    <script>
+    // ============================================
+    // REPORT DEFINITIONS
+    // ============================================
+    const REPORTS = [
+        { id: 'daily',              group: 'Sales',    icon: '📅', name: 'Daily Sales',         filters: ['date'] },
+        { id: 'weekly',             group: 'Sales',    icon: '📆', name: 'Weekly Sales',        filters: ['week'] },
+        { id: 'monthly',            group: 'Sales',    icon: '🗓️', name: 'Monthly Sales',       filters: ['year', 'month'] },
+        { id: 'yearly',             group: 'Sales',    icon: '📊', name: 'Yearly Sales',        filters: ['year'] },
+        { id: 'custom',             group: 'Sales',    icon: '📈', name: 'Custom Range Sales',  filters: ['dateRange'] },
+        { id: 'payment-breakdown',  group: 'Sales',    icon: '💳', name: 'Payment Breakdown',   filters: ['dateRange', 'paymentMethod'] },
+
+        { id: 'products-list',      group: 'Products', icon: '📦', name: 'Products List',       filters: ['category'] },
+        { id: 'category-report',    group: 'Products', icon: '🏷️', name: 'Product Categories',  filters: ['dateRange'] },
+        { id: 'top-products',       group: 'Products', icon: '🏆', name: 'Top Products',        filters: ['dateRange', 'limit'] },
+        { id: 'stock-value',        group: 'Products', icon: '💰', name: 'Stock Value',         filters: [] },
+        { id: 'stock-movement',     group: 'Products', icon: '⚡', name: 'Stock Movement',      filters: ['dateRange', 'movementFilter', 'limit'] },
+
+        { id: 'employee-performance', group: 'People', icon: '🧑‍💼', name: 'Employee Performance', filters: ['dateRange', 'roleFilter'] },
+        { id: 'users-report',         group: 'People', icon: '👥',   name: 'Users Report',         filters: [] },
+
+        { id: 'profit-loss',        group: 'Finance', icon: '💵', name: 'Profit & Loss',      filters: ['dateRange'] },
+        { id: 'active-discounts',   group: 'Finance', icon: '🎁', name: 'Active Discounts',   filters: [] },
+        { id: 'discount-usage',     group: 'Finance', icon: '📉', name: 'Discounts Applied',  filters: ['dateRange'] },
+        { id: 'discounted-sales',   group: 'Finance', icon: '🏷️', name: 'Discounted Sales',   filters: ['dateRange'] },
+        { id: 'credit',             group: 'Finance', icon: '📋', name: 'Credit Report',      filters: ['dateRange', 'creditStatus'] }
+    ];
+
+    // ============================================
+    // STATE
+    // ============================================
+    let selectedReportId = null;
+    let pendingReportId = null;
+    let currentFilters = {};
+    let pendingFilters = {};
+    let cachedCategories = null;
+    let currentChart = null;
+    let lastRenderedData = null;
+
+    const SESSION_KEY = 'fc_reports_state';
+
+    // ============================================
+    // HELPERS
+    // ============================================
+    function escapeHtml(s) {
+        return String(s ?? '').replace(/[&<>"']/g, c => ({
+            '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+        }[c]));
+    }
+
+    function todayISO() {
+        const d = new Date(); d.setHours(0, 0, 0, 0);
+        return d.toISOString().split('T')[0];
+    }
+    function daysAgoISO(n) {
+        const d = new Date(); d.setHours(0, 0, 0, 0);
+        d.setDate(d.getDate() - n);
+        return d.toISOString().split('T')[0];
+    }
+    function getReportDef(id) { return REPORTS.find(r => r.id === id); }
+
+    function getWeekNumber(d) {
+        const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+        const dayNum = date.getUTCDay() || 7;
+        date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+        const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+        return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+    }
+    function getISOWeekYear(d) {
+        const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+        const dayNum = date.getUTCDay() || 7;
+        date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+        return date.getUTCFullYear();
+    }
+    function getMondayOfWeek(year, week) {
+        const jan4 = new Date(year, 0, 4);
+        const dayOfWeek = jan4.getDay() || 7;
+        const monday = new Date(jan4);
+        monday.setDate(jan4.getDate() - dayOfWeek + 1 + (week - 1) * 7);
+        return monday;
+    }
+    function weekRangeLabel(year, week) {
+        const mon = getMondayOfWeek(year, week);
+        const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+        const fmt = d => d.toLocaleDateString('en-KE', { day: 'numeric', month: 'short' });
+        return `${fmt(mon)} → ${fmt(sun)} ${sun.getFullYear()}`;
+    }
+    function toISO(d) {
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function creditDaysUntil(dueDate) {
+        if (!dueDate) return null;
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const due = new Date(dueDate + 'T00:00:00');
+        return Math.round((due - today) / 86400000);
+    }
+    function creditUrgency(credit) {
+        const d = creditDaysUntil(credit.due_date);
+        if (d === null) return 'nodue';
+        if (d < 0) return 'overdue';
+        if (d === 0) return 'today';
+        if (d <= 7) return 'soon';
+        return 'upcoming';
+    }
+    function creditDaysBadge(credit) {
+        const d = creditDaysUntil(credit.due_date);
+        if (d === null) return '<span class="days-badge nodue">No due date</span>';
+        if (d < 0) return `<span class="days-badge overdue">${Math.abs(d)}d overdue</span>`;
+        if (d === 0) return '<span class="days-badge today">Due today</span>';
+        return `<span class="days-badge ${creditUrgency(credit)}">${d}d left</span>`;
+    }
+
+    // ============================================
+    // PICKER MODAL
+    // ============================================
+    function openPicker() {
+        pendingReportId = selectedReportId || REPORTS.find(r => !r.disabled)?.id || 'daily';
+        // Always reset to defaults for the report being opened, so stale filters
+        // from a different report don't leak into the new one.
+        pendingFilters = defaultFiltersFor(pendingReportId);
+        renderPickerList();
+        renderPickerFilters();
+        openModal('reportPickerModal');
+    }
+
+    function renderPickerList() {
+        const query = (document.getElementById('pickerSearch').value || '').toLowerCase().trim();
+        const groups = ['Sales', 'Products', 'People', 'Finance'];
+        const el = document.getElementById('pickerList');
+
+        let html = '';
+        for (const g of groups) {
+            const items = REPORTS.filter(r => r.group === g && (!query || r.name.toLowerCase().includes(query)));
+            if (!items.length) continue;
+            html += `<div class="picker-group">${g}</div>`;
+            html += items.map(r => `
+                <div class="picker-item ${r.id === pendingReportId ? 'selected' : ''} ${r.disabled ? 'disabled' : ''}"
+                     onclick="${r.disabled ? '' : `selectReportInPicker('${r.id}')`}">
+                    <span class="pi-icon">${r.icon}</span>
+                    <span>${escapeHtml(r.name)}</span>
+                    ${r.badge ? `<span class="pi-badge">${r.badge}</span>` : ''}
+                </div>
+            `).join('');
+        }
+        el.innerHTML = html;
+    }
+
+    function selectReportInPicker(id) {
+        const def = getReportDef(id);
+        if (!def || def.disabled) return;
+        pendingReportId = id;
+        pendingFilters = defaultFiltersFor(id);
+        renderPickerList();
+        renderPickerFilters();
+    }
+
+    function defaultFiltersFor(id) {
+        const def = getReportDef(id);
+        if (!def) return {};
+        const f = {};
+        for (const t of def.filters) {
+            switch (t) {
+                case 'date':           f.date = todayISO(); break;
+                case 'dateRange':
+                    f.start_date = daysAgoISO(29);
+                    f.end_date = todayISO();
+                    f._preset = 'last30';
+                    break;
+                case 'year':           f.year = new Date().getFullYear(); break;
+                case 'month':          f.month = new Date().getMonth() + 1; break;
+                case 'week':
+                    f.week = getWeekNumber(new Date());
+                    f.year = getISOWeekYear(new Date());
+                    break;
+                case 'limit':          f.limit = 100; break;
+                case 'category':       f.category = ''; break;
+                case 'creditStatus':   f.status = 'all'; break;
+                case 'paymentMethod':  f.payment_method = 'All'; break;
+                case 'movementFilter': f.movement = 'all'; break;
+                case 'roleFilter':     f.role = 'all'; break;
+            }
+        }
+        return f;
+    }
+
+    function setDatePreset(preset) {
+        const now = new Date();
+        let start, end = todayISO();
+
+        switch (preset) {
+            case 'today':     start = todayISO(); break;
+            case 'last7':     start = daysAgoISO(6); break;
+            case 'last30':    start = daysAgoISO(29); break;
+            case 'thisMonth': {
+                const d = new Date(now.getFullYear(), now.getMonth(), 1);
+                start = toISO(d);
+                break;
+            }
+            case 'lastMonth': {
+                const first = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                const last = new Date(now.getFullYear(), now.getMonth(), 0);
+                start = toISO(first);
+                end = toISO(last);
+                break;
+            }
+            case 'thisYear': {
+                const d = new Date(now.getFullYear(), 0, 1);
+                start = toISO(d);
+                break;
+            }
+            default: start = daysAgoISO(29);
+        }
+
+        pendingFilters.start_date = start;
+        pendingFilters.end_date = end;
+        pendingFilters._preset = preset;
+
+        document.getElementById('pf_start_date').value = start;
+        document.getElementById('pf_end_date').value = end;
+        updatePresetButtons();
+    }
+
+    function updatePresetButtons() {
+        document.querySelectorAll('.date-preset-row button').forEach(b => {
+            b.classList.toggle('active', b.dataset.preset === pendingFilters._preset);
+        });
+    }
+
+    function renderPickerFilters() {
+        const def = getReportDef(pendingReportId);
+        const el = document.getElementById('pickerFilters');
+
+        if (!def) { el.innerHTML = '<div class="filter-hint">Select a report</div>'; return; }
+        if (!def.filters.length) {
+            el.innerHTML = '<div class="filter-hint">This report has no filters.</div>';
+            return;
+        }
+
+        let html = '';
+
+        if (def.filters.includes('dateRange')) {
+            const preset = pendingFilters._preset || 'last30';
+            const presets = [
+                { id: 'today',     label: 'Today' },
+                { id: 'last7',     label: '7 days' },
+                { id: 'last30',    label: '30 days' },
+                { id: 'thisMonth', label: 'Month' },
+                { id: 'lastMonth', label: 'Last M' },
+                { id: 'thisYear',  label: 'Year' }
+            ];
+            html += `<div class="filter-section-label">Date range</div>
+                <div class="date-preset-row">
+                    ${presets.map(p => `
+                        <button type="button" data-preset="${p.id}" onclick="setDatePreset('${p.id}')"
+                            ${p.id === preset ? 'class="active"' : ''}>${p.label}</button>
+                    `).join('')}
+                </div>
+                <div class="filter-group">
+                    <div class="filter-date-range">
+                        <span class="cal-icon">📅</span>
+                        <input type="date" id="pf_start_date" value="${pendingFilters.start_date || daysAgoISO(29)}"
+                            onchange="pendingFilters._preset='custom'; updatePresetButtons();" />
+                        <span style="color:var(--text-muted);font-family:var(--font-mono);font-size:12px;">→</span>
+                        <input type="date" id="pf_end_date" value="${pendingFilters.end_date || todayISO()}"
+                            onchange="pendingFilters._preset='custom'; updatePresetButtons();" />
+                    </div>
+                </div>`;
+        }
+
+        if (def.filters.includes('date')) {
+            html += `<div class="filter-section-label">Date</div>
+                <div class="filter-group">
+                    <div class="filter-date-range">
+                        <span class="cal-icon">📅</span>
+                        <input type="date" id="pf_date" value="${pendingFilters.date || todayISO()}" />
+                    </div>
+                </div>`;
+        }
+
+        if (def.filters.includes('week')) {
+            const year = pendingFilters.year || getISOWeekYear(new Date());
+            const week = pendingFilters.week || getWeekNumber(new Date());
+            html += `<div class="filter-section-label">Week</div>
+                <div class="week-nav">
+                    <button type="button" onclick="weekShift(-1)" title="Previous week">◀</button>
+                    <div class="week-label">W${week} · ${year}</div>
+                    <button type="button" onclick="weekShift(1)" title="Next week">▶</button>
+                </div>
+                <div class="filter-group">
+                    <input type="date" id="pf_week_anchor" value="${toISO(getMondayOfWeek(year, week))}" onchange="onWeekAnchorChange()" />
+                </div>
+                <div class="week-hint" id="pf_week_hint">${weekRangeLabel(year, week)}</div>`;
+        }
+
+        if (def.filters.includes('year')) {
+            html += `<div class="filter-section-label">Year</div>
+                <div class="filter-group">
+                    <input type="number" id="pf_year" min="2020" max="2100" value="${pendingFilters.year || new Date().getFullYear()}" />
+                </div>`;
+        }
+
+        if (def.filters.includes('month')) {
+            html += `<div class="filter-section-label">Month</div>
+                <div class="filter-group">
+                    <select id="pf_month">
+                        ${Array.from({length:12}, (_,i) => i+1).map(m =>
+                            `<option value="${m}" ${(pendingFilters.month||new Date().getMonth()+1)==m?'selected':''}>${new Date(2026, m-1).toLocaleString('en-KE',{month:'long'})}</option>`
+                        ).join('')}
+                    </select>
+                </div>`;
+        }
+
+        if (def.filters.includes('category')) {
+            html += `<div class="filter-section-label">Product group</div>
+                <div class="filter-group">
+                    <select id="pf_category"><option value="">All products</option></select>
+                </div>`;
+        }
+
+        if (def.filters.includes('paymentMethod')) {
+            const cur = pendingFilters.payment_method || 'All';
+            html += `<div class="filter-section-label">Payment method</div>
+                <div class="filter-group">
+                    <select id="pf_payment_method">
+                        <option value="All" ${cur==='All'?'selected':''}>All</option>
+                        <option value="Cash" ${cur==='Cash'?'selected':''}>Cash</option>
+                        <option value="M-Pesa" ${cur==='M-Pesa'?'selected':''}>M-Pesa</option>
+                        <option value="Bank" ${cur==='Bank'?'selected':''}>Bank</option>
+                        <option value="Credit" ${cur==='Credit'?'selected':''}>Credit</option>
+                    </select>
+                </div>`;
+        }
+
+        if (def.filters.includes('movementFilter')) {
+            const cur = pendingFilters.movement || 'all';
+            html += `<div class="filter-section-label">Movement</div>
+                <div class="filter-group">
+                    <select id="pf_movement">
+                        <option value="all" ${cur==='all'?'selected':''}>All (fast → slow)</option>
+                        <option value="fast" ${cur==='fast'?'selected':''}>Fast moving</option>
+                        <option value="slow" ${cur==='slow'?'selected':''}>Slow moving</option>
+                        <option value="stalled" ${cur==='stalled'?'selected':''}>Stalled (zero sales)</option>
+                    </select>
+                </div>`;
+        }
+
+        if (def.filters.includes('roleFilter')) {
+            const cur = pendingFilters.role || 'all';
+            html += `<div class="filter-section-label">Staff role</div>
+                <div class="filter-group">
+                    <select id="pf_role">
+                        <option value="all" ${cur==='all'?'selected':''}>All roles</option>
+                        <option value="owner" ${cur==='owner'?'selected':''}>Owner</option>
+                        <option value="manager" ${cur==='manager'?'selected':''}>Manager</option>
+                        <option value="employee" ${cur==='employee'?'selected':''}>Employee</option>
+                    </select>
+                </div>`;
+        }
+
+        if (def.filters.includes('creditStatus')) {
+            const cur = pendingFilters.status || 'all';
+            html += `<div class="filter-section-label">Credit status</div>
+                <div class="filter-group">
+                    <select id="pf_status">
+                        <option value="all" ${cur==='all'?'selected':''}>All (incl. paid)</option>
+                        <option value="pending" ${cur==='pending'?'selected':''}>Pending (0 paid)</option>
+                        <option value="partial" ${cur==='partial'?'selected':''}>Partial (partially paid)</option>
+                        <option value="paid" ${cur==='paid'?'selected':''}>Paid (settled)</option>
+                    </select>
+                </div>`;
+        }
+
+        if (def.filters.includes('limit')) {
+            html += `<div class="filter-section-label">Limit</div>
+                <div class="filter-group">
+                    <input type="number" id="pf_limit" min="1" max="1000" value="${pendingFilters.limit || 100}" />
+                </div>`;
+        }
+
+        el.innerHTML = html;
+
+        if (def.filters.includes('category')) populateCategoryDropdown();
+        if (def.filters.includes('dateRange')) updatePresetButtons();
+    }
+
+    function weekShift(delta) {
+        const anchor = document.getElementById('pf_week_anchor');
+        if (!anchor) return;
+        const cur = new Date(anchor.value + 'T00:00:00');
+        cur.setDate(cur.getDate() + delta * 7);
+        anchor.value = toISO(cur);
+        onWeekAnchorChange();
+    }
+    function onWeekAnchorChange() {
+        const anchor = document.getElementById('pf_week_anchor');
+        if (!anchor) return;
+        const d = new Date(anchor.value + 'T00:00:00');
+        pendingFilters.week = getWeekNumber(d);
+        pendingFilters.year = getISOWeekYear(d);
+        const hint = document.getElementById('pf_week_hint');
+        if (hint) hint.textContent = weekRangeLabel(pendingFilters.year, pendingFilters.week);
+        const label = document.querySelector('.week-label');
+        if (label) label.textContent = `W${pendingFilters.week} · ${pendingFilters.year}`;
+    }
+
+    async function populateCategoryDropdown() {
+        const sel = document.getElementById('pf_category');
+        if (!sel) return;
+        if (!cachedCategories) {
+            try { cachedCategories = await fetchCategories(); }
+            catch { cachedCategories = []; }
+        }
+        const sorted = [...cachedCategories].sort((a, b) => a.name.localeCompare(b.name));
+        sel.innerHTML = '<option value="">All products</option>' +
+            sorted.map(c => `<option value="${c.id}" ${pendingFilters.category === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('');
+    }
+
+    function readPendingFiltersFromForm() {
+        const def = getReportDef(pendingReportId);
+        if (!def) return {};
+        const f = {};
+        for (const t of def.filters) {
+            switch (t) {
+                case 'date': {
+                    const v = document.getElementById('pf_date')?.value;
+                    if (v) f.date = v;
+                    break;
+                }
+                case 'dateRange': {
+                    const s = document.getElementById('pf_start_date')?.value;
+                    const e = document.getElementById('pf_end_date')?.value;
+                    if (s) f.start_date = s;
+                    if (e) f.end_date = e;
+                    f._preset = pendingFilters._preset || 'custom';
+                    break;
+                }
+                case 'year': {
+                    if (def.filters.includes('week')) {
+                        f.year = pendingFilters.year || new Date().getFullYear();
+                    } else {
+                        const v = document.getElementById('pf_year')?.value;
+                        if (v) f.year = parseInt(v);
+                    }
+                    break;
+                }
+                case 'month': {
+                    const v = document.getElementById('pf_month')?.value;
+                    if (v) f.month = parseInt(v);
+                    break;
+                }
+                case 'week': {
+                    f.week = pendingFilters.week || getWeekNumber(new Date());
+                    f.year = pendingFilters.year || getISOWeekYear(new Date());
+                    break;
+                }
+                case 'limit': {
+                    const v = document.getElementById('pf_limit')?.value;
+                    if (v) f.limit = parseInt(v);
+                    break;
+                }
+                case 'category': {
+                    const v = document.getElementById('pf_category')?.value;
+                    f.category = v || '';
+                    break;
+                }
+                case 'creditStatus': {
+                    const v = document.getElementById('pf_status')?.value;
+                    if (v) f.status = v;
+                    break;
+                }
+                case 'paymentMethod': {
+                    const v = document.getElementById('pf_payment_method')?.value;
+                    f.payment_method = v || 'All';
+                    break;
+                }
+                case 'movementFilter': {
+                    const v = document.getElementById('pf_movement')?.value;
+                    f.movement = v || 'all';
+                    break;
+                }
+                case 'roleFilter': {
+                    const v = document.getElementById('pf_role')?.value;
+                    f.role = v || 'all';
+                    break;
+                }
+            }
+        }
+        return f;
+    }
+
+    function confirmPicker() {
+        pendingFilters = readPendingFiltersFromForm();
+        selectedReportId = pendingReportId;
+        currentFilters = { ...pendingFilters };
+        closeModal('reportPickerModal');
+        saveState();
+        loadCurrentReport();
+    }
+
+    function saveState() {
+        sessionStorage.setItem(SESSION_KEY, JSON.stringify({ selectedReportId, currentFilters }));
+    }
+
+    function restoreState() {
+        try {
+            const raw = sessionStorage.getItem(SESSION_KEY);
+            if (!raw) return false;
+            const s = JSON.parse(raw);
+            if (s && s.selectedReportId && getReportDef(s.selectedReportId)) {
+                selectedReportId = s.selectedReportId;
+                const stored = s.currentFilters || {};
+                const def = getReportDef(s.selectedReportId);
+                const needed = def.filters || [];
+                const hasDateRange = needed.includes('dateRange');
+                const hasSingleDate = needed.includes('date');
+                const staleForRange = hasDateRange && (!stored.start_date || !stored.end_date);
+                const staleForSingle = hasSingleDate && !stored.date;
+                currentFilters = (staleForRange || staleForSingle)
+                    ? defaultFiltersFor(s.selectedReportId)
+                    : stored;
+                return true;
+            }
+        } catch { /* */ }
+        return false;
+    }
+
+    function reloadCurrentReport() {
+        if (!selectedReportId) { openPicker(); return; }
+        loadCurrentReport();
+    }
+
+    // ============================================
+    // LOAD & RENDER
+    // ============================================
+    async function loadCurrentReport() {
+        if (!selectedReportId) return;
+        const def = getReportDef(selectedReportId);
+        if (!def || def.disabled) return;
+
+        updateBanner();
+        document.getElementById('exportBar').style.display = 'flex';
+
+        const container = document.getElementById('reportContent');
+        container.innerHTML = '<div class="report-empty">⏳ Loading...</div>';
+        const errorArea = document.getElementById('errorArea');
+        errorArea.innerHTML = '';
+
+        try {
+            const data = await fetchReportFor(selectedReportId, currentFilters);
+            lastRenderedData = data;
+            renderReport(selectedReportId, data, currentFilters);
+        } catch (err) {
+            console.error('loadCurrentReport failed:', err);
+            container.innerHTML = '';
+            errorArea.innerHTML = `
+                <div class="error-banner">
+                    <div>
+                        <strong>Could not load report.</strong><br>
+                        <span style="font-size:13px;">${escapeHtml(err.message || 'Unknown error')}</span>
+                    </div>
+                    <button class="btn-ghost btn-sm" onclick="loadCurrentReport()">Retry</button>
+                </div>`;
+            showToast('Failed to load report', 'error');
+        }
+    }
+
+    async function fetchReportFor(id, filters) {
+        if (id === 'products-list') return await fetchProducts();
+
+        if (id === 'users-report') {
+            const users = await fetchUsers();
+            return { users: users || [] };
+        }
+
+        if (id === 'active-discounts') {
+            const res = await apiRequest('/discounts/active');
+            return res.data || [];
+        }
+
+        // ─── Unified Discounts Applied: catalog + manual ───
+        if (id === 'discount-usage') {
+            const startISO = filters.start_date ? filters.start_date + 'T00:00:00' : null;
+            const endISO   = filters.end_date   ? filters.end_date + 'T23:59:59'   : null;
+
+            // 1. Catalog usages (from discount_usage table)
+            const usageParams = new URLSearchParams();
+            if (filters.start_date) usageParams.set('start_date', filters.start_date);
+            if (filters.end_date)   usageParams.set('end_date',   filters.end_date);
+            const usageRes = await apiRequest('/discounts/usage-report?' + usageParams.toString());
+            const usages = (usageRes.data?.usage_details) || [];
+
+            // 2. Manual discounts (from sales where discount > 0)
+            const salesParams = {};
+            if (startISO) salesParams.start_date = startISO;
+            if (endISO)   salesParams.end_date   = endISO;
+            const customReport = await fetchReport('custom', salesParams);
+            const manualSales = (customReport?.sales || []).filter(s => (Number(s.discount) || 0) > 0);
+
+            // 3. Merge into one list — each row is a distinct discount application
+            const catalogRows = usages.map(u => ({
+                date: u.applied_at,
+                receipt: u.sale?.receipt_number || '—',
+                customer: u.sale?.customer_name || 'Walk-in',
+                source: 'catalog',
+                source_label: u.discount?.name || 'Catalog discount',
+                amount: Number(u.discount_amount) || 0
+            }));
+
+            const catalogReceipts = new Set(catalogRows.map(r => r.receipt));
+            const manualRows = manualSales
+                // avoid double-listing sales that already appear in discount_usage
+                .filter(s => !catalogReceipts.has(s.receipt_number))
+                .map(s => ({
+                    date: s.sale_date,
+                    receipt: s.receipt_number || '—',
+                    customer: s.customer_name || 'Walk-in',
+                    source: 'manual',
+                    source_label: 'Manual discount',
+                    amount: Number(s.discount) || 0
+                }));
+
+            const merged = [...catalogRows, ...manualRows].sort(
+                (a, b) => new Date(b.date) - new Date(a.date)
+            );
+
+            return {
+                catalog_count: catalogRows.length,
+                manual_count: manualRows.length,
+                total_count: merged.length,
+                total_amount: merged.reduce((s, r) => s + r.amount, 0),
+                merged
+            };
+        }
+
+        if (id === 'discounted-sales') {
+            const params = {};
+            if (filters.start_date) params.start_date = filters.start_date + 'T00:00:00';
+            if (filters.end_date)   params.end_date   = filters.end_date + 'T23:59:59';
+            const report = await fetchReport('custom', params);
+            const allSales = report?.sales || [];
+            return {
+                date_range: report.date_range,
+                all_sales: allSales,
+                discounted: allSales.filter(s => (Number(s.discount) || 0) > 0)
+            };
+        }
+
+        if (id === 'credit') {
+            const params = new URLSearchParams();
+            if (filters.start_date) params.set('start_date', filters.start_date + 'T00:00:00');
+            if (filters.end_date)   params.set('end_date',   filters.end_date + 'T23:59:59');
+            params.set('status', filters.status || 'all');
+            params.set('limit', '500');
+            const res = await apiRequest('/discounts/credit?' + params.toString());
+            return res;
+        }
+
+        if (id === 'payment-breakdown') {
+            const params = {};
+            if (filters.start_date) params.start_date = filters.start_date;
+            if (filters.end_date) params.end_date = filters.end_date;
+            if (filters.payment_method && filters.payment_method !== 'All') {
+                params.payment_method = filters.payment_method;
+            }
+            return await fetchReport('payment-breakdown-v2', params);
+        }
+
+        if (id === 'stock-movement') {
+            const params = {};
+            if (filters.start_date) params.start_date = filters.start_date;
+            if (filters.end_date) params.end_date = filters.end_date;
+            if (filters.limit) params.limit = filters.limit;
+            return await fetchReport('stock-movement-v2', params);
+        }
+
+        return await fetchReport(id, filters);
+    }
+
+    function updateBanner() {
+        const def = getReportDef(selectedReportId);
+        if (!def) return;
+        document.getElementById('currentBanner').style.display = 'flex';
+        document.getElementById('crIcon').textContent = def.icon;
+        document.getElementById('crTitle').textContent = def.name;
+        document.getElementById('crFilters').textContent = formatFiltersLine(currentFilters);
+    }
+
+    function formatFiltersLine(f) {
+        const parts = [];
+        if (f.date) parts.push(`Date: ${f.date}`);
+        if (f.start_date && f.end_date) parts.push(`${f.start_date} → ${f.end_date}`);
+        if (f.year && f.week) parts.push(`Week ${f.week}, ${f.year}`);
+        else if (f.year) parts.push(`Year: ${f.year}`);
+        if (f.month) parts.push(`Month: ${f.month}`);
+        if (f.limit && !f.week) parts.push(`Limit: ${f.limit}`);
+        if (f.status) parts.push(`Status: ${f.status}`);
+        if (f.payment_method && f.payment_method !== 'All') parts.push(f.payment_method);
+        if (f.movement && f.movement !== 'all') parts.push(`${f.movement} moving`);
+        if (f.role && f.role !== 'all') parts.push(`Role: ${f.role}`);
+        if (f.category) parts.push('Filtered by category');
+        return parts.join(' · ') || 'No filters';
+    }
+
+    // ============================================
+    // RENDERERS
+    // ============================================
+    function renderReport(id, data, filters) {
+        const c = document.getElementById('reportContent');
+        try {
+            switch (id) {
+                case 'daily':
+                case 'weekly':
+                case 'monthly':
+                case 'yearly':
+                case 'custom':              return renderDailyOrRange(c, data);
+                case 'payment-breakdown':   return renderPaymentBreakdown(c, data);
+                case 'products-list':       return renderProductsList(c, data, filters);
+                case 'category-report':     return renderCategoryReport(c, data);
+                case 'top-products':        return renderTopProducts(c, data);
+                case 'stock-value':         return renderStockValue(c, data);
+                case 'stock-movement':      return renderStockMovement(c, data, filters);
+                case 'employee-performance':return renderEmployeePerformance(c, data, filters);
+                case 'users-report':        return renderUsersReport(c, data);
+                case 'profit-loss':         return renderProfitLoss(c, data);
+                case 'active-discounts':    return renderActiveDiscounts(c, data);
+                case 'discount-usage':      return renderDiscountUsage(c, data);
+                case 'discounted-sales':    return renderDiscountedSales(c, data);
+                case 'credit':              return renderCredit(c, data, filters);
+                default: c.innerHTML = '<div class="report-empty">No renderer for this report.</div>';
+            }
+        } catch (err) {
+            console.error('renderReport error:', err);
+            c.innerHTML = `<div class="error-banner"><div><strong>Render error.</strong><br>${escapeHtml(err.message)}</div></div>`;
+        }
+    }
+
+    function destroyChart() {
+        if (currentChart) { currentChart.destroy(); currentChart = null; }
+    }
+
+    function renderDailyOrRange(container, data) {
+        destroyChart();
+        const s = data.summary || {};
+        const kpis = [
+            ['Transactions', s.total_sales || 0, 'var(--accent)'],
+            ['Revenue', formatCurrency(s.total_revenue || 0), 'var(--green)'],
+            ['Profit', formatCurrency(s.total_profit || 0), 'var(--accent)'],
+            ['Discount', formatCurrency(s.total_discount || 0), 'var(--text)'],
+            ['Avg Ticket', formatCurrency(s.average_transaction || 0), 'var(--text)']
+        ];
+
+        const series = data.daily_breakdown || data.hourly_breakdown || {};
+        const seriesLabel = data.daily_breakdown ? 'Daily' : (data.hourly_breakdown ? 'Hourly' : '');
+
+        let html = `<div class="stats-grid">${createStats(kpis)}</div>`;
+        if (seriesLabel && Object.keys(series).length) {
+            html += `<div class="chart-wrap no-print">
+                <div class="chart-title">${seriesLabel} Revenue</div>
+                <canvas id="reportChart" height="90"></canvas>
+            </div>`;
+        }
+
+        html += renderSalesTable(data.sales || []);
+        container.innerHTML = html;
+
+        if (seriesLabel && Object.keys(series).length) {
+            const keys = Object.keys(series).sort();
+            currentChart = new Chart(document.getElementById('reportChart'), {
+                type: 'line',
+                data: {
+                    labels: keys,
+                    datasets: [{
+                        label: 'Revenue',
+                        data: keys.map(k => series[k]),
+                        borderColor: '#2e7d32',
+                        backgroundColor: 'rgba(46,125,50,0.15)',
+                        tension: 0.3, fill: true
+                    }]
+                },
+                options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+            });
+        }
+    }
+
+    function renderSalesTable(sales) {
+        if (!sales.length) return '<div class="report-empty">No sales in this range.</div>';
+        const total = sales.reduce((s, x) => s + (Number(x.total) || 0), 0);
+        const itemsTotal = sales.reduce((s, x) => s + (x.sale_items?.length || 0), 0);
+
+        return `
+            <div class="report-table-wrap">
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th>Receipt</th><th>Date</th><th>Customer</th>
+                            <th>Cashier</th><th>Items</th><th>Payment</th>
+                            <th class="num">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${sales.map(s => `
+                            <tr>
+                                <td class="mono">${escapeHtml(s.receipt_number || '')}</td>
+                                <td class="muted">${new Date(s.sale_date).toLocaleString('en-KE', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                                <td>${escapeHtml(s.customer_name || 'Walk-in')}</td>
+                                <td>${escapeHtml(s.user?.full_name || '—')}</td>
+                                <td class="mono">${s.sale_items?.length || 0}</td>
+                                <td><span class="pill ${getPaymentPillClass(s.payment_method)}">${escapeHtml(s.payment_method || '')}</span></td>
+                                <td class="num green">${formatCurrency(s.total || 0)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="4" style="text-align:right;">GRAND TOTAL</td>
+                            <td class="mono">${itemsTotal}</td>
+                            <td></td>
+                            <td class="num green">${formatCurrency(total)}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>`;
+    }
+
+    function renderPaymentBreakdown(container, data) {
+        destroyChart();
+        const b = data.breakdown || {};
+        const totalRevenue = data.total_revenue || 0;
+
+        const kpis = [
+            ['Transactions', data.total_transactions || 0, 'var(--accent)'],
+            ['Total Revenue', formatCurrency(totalRevenue), 'var(--green)'],
+            ['Filter', data.payment_method_filter || 'All', 'var(--text)']
+        ];
+
+        const rows = Object.entries(b).map(([method, d]) => ({
+            method, count: d.count, total: d.total, discount: d.discount || 0, tax: d.tax || 0,
+            pct: totalRevenue > 0 ? (d.total / totalRevenue) * 100 : 0
+        })).sort((a, b) => b.total - a.total);
+
+        let html = `<div class="stats-grid">${createStats(kpis)}</div>`;
+        html += `<div style="display:grid;grid-template-columns:340px 1fr;gap:14px;align-items:start;">
+            <div class="chart-wrap no-print">
+                <div class="chart-title">Revenue share</div>
+                <canvas id="reportChart" height="220"></canvas>
+            </div>
+            <div class="report-table-wrap">
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th>Method</th><th class="num">Count</th>
+                            <th class="num">Total</th><th class="num">Discount</th>
+                            <th class="num">Tax</th><th class="num">%</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows.map(r => `
+                            <tr>
+                                <td><span class="pill ${getPaymentPillClass(r.method)}">${escapeHtml(r.method)}</span></td>
+                                <td class="num">${r.count}</td>
+                                <td class="num green">${formatCurrency(r.total)}</td>
+                                <td class="num">${formatCurrency(r.discount)}</td>
+                                <td class="num">${formatCurrency(r.tax)}</td>
+                                <td class="num">${r.pct.toFixed(1)}%</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td>GRAND TOTAL</td>
+                            <td class="num">${data.total_transactions || 0}</td>
+                            <td class="num green">${formatCurrency(totalRevenue)}</td>
+                            <td colspan="3"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>`;
+
+        container.innerHTML = html;
+        if (rows.length) {
+            currentChart = new Chart(document.getElementById('reportChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: rows.map(r => r.method),
+                    datasets: [{
+                        data: rows.map(r => r.total),
+                        backgroundColor: ['#2e7d32','#2980b9','#8e44ad','#f39c12','#e74c3c']
+                    }]
+                },
+                options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+            });
+        }
+    }
+
+    function renderProductsList(container, products, filters) {
+        destroyChart();
+        const catFilter = filters.category || '';
+        let rows = (products || []).map(p => {
+            const inv = Array.isArray(p.inventory) && p.inventory.length ? p.inventory[0] : null;
+            const stock = p.total_stock ?? inv?.current_stock ?? p.quantity ?? 0;
+            const cost = inv?.cost_price ?? p.cost_price ?? 0;
+            const sell = inv?.selling_price ?? p.selling_price ?? 0;
+            return {
+                id: p.id, sku: p.sku || '', name: p.name,
+                category_id: p.category_id || '',
+                category: p.categories?.name || 'Uncategorized',
+                unit: p.unit_of_measure || 'piece',
+                stock, cost, sell,
+                cost_value: stock * cost,
+                sale_value: stock * sell,
+                margin: stock * (sell - cost)
+            };
+        });
+        if (catFilter) rows = rows.filter(r => r.category_id === catFilter);
+        rows.sort((a, b) => a.name.localeCompare(b.name));
+
+        const totalQty = rows.reduce((s, r) => s + r.stock, 0);
+        const totalCost = rows.reduce((s, r) => s + r.cost_value, 0);
+        const totalSale = rows.reduce((s, r) => s + r.sale_value, 0);
+        const totalMargin = rows.reduce((s, r) => s + r.margin, 0);
+
+        const kpis = [
+            ['Products', rows.length, 'var(--accent)'],
+            ['Total Units', totalQty, 'var(--text)'],
+            ['Cost Value', formatCurrency(totalCost), 'var(--text)'],
+            ['Sale Value', formatCurrency(totalSale), 'var(--green)'],
+            ['Margin', formatCurrency(totalMargin), 'var(--accent)']
+        ];
+
+        container.innerHTML = `
+            <div class="stats-grid">${createStats(kpis)}</div>
+            <div class="report-table-wrap">
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th>Code</th><th>Name</th><th>Category</th>
+                            <th class="num">Qty</th><th>Unit</th>
+                            <th class="num">Cost Price</th>
+                            <th class="num">Cost Value</th>
+                            <th class="num">Sale Price</th>
+                            <th class="num">Sale Value</th>
+                            <th class="num">Margin</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows.map(r => `
+                            <tr>
+                                <td class="mono">${escapeHtml(r.sku || '—')}</td>
+                                <td>${escapeHtml(r.name)}</td>
+                                <td class="muted">${escapeHtml(r.category)}</td>
+                                <td class="num mono">${r.stock}</td>
+                                <td class="muted">${escapeHtml(r.unit)}</td>
+                                <td class="num">${formatCurrency(r.cost)}</td>
+                                <td class="num">${formatCurrency(r.cost_value)}</td>
+                                <td class="num">${formatCurrency(r.sell)}</td>
+                                <td class="num green">${formatCurrency(r.sale_value)}</td>
+                                <td class="num ${r.margin >= 0 ? 'green' : 'red'}">${formatCurrency(r.margin)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="3">GRAND TOTAL</td>
+                            <td class="num">${totalQty}</td>
+                            <td></td>
+                            <td></td>
+                            <td class="num">${formatCurrency(totalCost)}</td>
+                            <td></td>
+                            <td class="num green">${formatCurrency(totalSale)}</td>
+                            <td class="num ${totalMargin >= 0 ? 'green' : 'red'}">${formatCurrency(totalMargin)}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>`;
+    }
+
+    function renderCategoryReport(container, data) {
+        destroyChart();
+        const summary = data.summary || {};
+        const rows = data.data || [];
+
+        const kpis = [
+            ['Categories', summary.total_categories || 0, 'var(--accent)'],
+            ['Units Sold', summary.total_units_sold || 0, 'var(--text)'],
+            ['Revenue', formatCurrency(summary.total_revenue || 0), 'var(--green)'],
+            ['Profit', formatCurrency(summary.total_profit || 0), 'var(--accent)']
+        ];
+
+        let html = `<div class="stats-grid">${createStats(kpis)}</div>`;
+        if (rows.length) {
+            html += `<div class="chart-wrap no-print">
+                <div class="chart-title">Revenue by category</div>
+                <canvas id="reportChart" height="140"></canvas>
+            </div>`;
+        }
+
+        const totalQty = rows.reduce((s, r) => s + r.total_quantity_sold, 0);
+        const totalRev = rows.reduce((s, r) => s + r.total_revenue, 0);
+        const totalProfit = rows.reduce((s, r) => s + r.total_profit, 0);
+
+        html += `
+            <div class="report-table-wrap">
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th class="num">Products</th>
+                            <th class="num">Products Sold</th>
+                            <th class="num">Units Sold</th>
+                            <th class="num">Revenue</th>
+                            <th class="num">Profit</th>
+                            <th class="num">Transactions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows.map(r => `
+                            <tr>
+                                <td>${escapeHtml(r.category_name || '')}</td>
+                                <td class="num">${r.products_count}</td>
+                                <td class="num">${r.unique_products_sold}</td>
+                                <td class="num"><strong>${r.total_quantity_sold}</strong></td>
+                                <td class="num green">${formatCurrency(r.total_revenue)}</td>
+                                <td class="num">${formatCurrency(r.total_profit)}</td>
+                                <td class="num">${r.transaction_count}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="3">GRAND TOTAL</td>
+                            <td class="num">${totalQty}</td>
+                            <td class="num green">${formatCurrency(totalRev)}</td>
+                            <td class="num">${formatCurrency(totalProfit)}</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>`;
+
+        container.innerHTML = html;
+        if (rows.length) {
+            const top = rows.slice(0, 12);
+            currentChart = new Chart(document.getElementById('reportChart'), {
+                type: 'bar',
+                data: {
+                    labels: top.map(r => r.category_name),
+                    datasets: [{
+                        label: 'Revenue',
+                        data: top.map(r => r.total_revenue),
+                        backgroundColor: '#2e7d32'
+                    }]
+                },
+                options: {
+                    indexAxis: 'y', responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { beginAtZero: true } }
+                }
+            });
+        }
+    }
+
+    function renderTopProducts(container, rows) {
+        destroyChart();
+        if (!Array.isArray(rows)) rows = [];
+        const totalQty = rows.reduce((s, r) => s + (r.total_quantity || 0), 0);
+        const totalRev = rows.reduce((s, r) => s + (r.total_revenue || 0), 0);
+        const totalProfit = rows.reduce((s, r) => s + (r.total_profit || 0), 0);
+
+        const kpis = [
+            ['Products', rows.length, 'var(--accent)'],
+            ['Units Sold', totalQty, 'var(--text)'],
+            ['Revenue', formatCurrency(totalRev), 'var(--green)'],
+            ['Profit', formatCurrency(totalProfit), 'var(--accent)']
+        ];
+
+        let html = `<div class="stats-grid">${createStats(kpis)}</div>`;
+        if (rows.length) {
+            html += `<div class="chart-wrap no-print">
+                <div class="chart-title">Revenue by product</div>
+                <canvas id="reportChart" height="120"></canvas>
+            </div>`;
+        }
+        html += `
+            <div class="report-table-wrap">
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th>Product</th><th class="num">Units</th>
+                            <th class="num">Revenue</th><th class="num">Profit</th>
+                            <th class="num">Transactions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows.map(r => `
+                            <tr>
+                                <td>${escapeHtml(r.product_name || '')}</td>
+                                <td class="num">${r.total_quantity || 0}</td>
+                                <td class="num green">${formatCurrency(r.total_revenue || 0)}</td>
+                                <td class="num">${formatCurrency(r.total_profit || 0)}</td>
+                                <td class="num">${r.transaction_count || 0}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td>GRAND TOTAL</td>
+                            <td class="num">${totalQty}</td>
+                            <td class="num green">${formatCurrency(totalRev)}</td>
+                            <td class="num">${formatCurrency(totalProfit)}</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>`;
+        container.innerHTML = html;
+
+        if (rows.length) {
+            currentChart = new Chart(document.getElementById('reportChart'), {
+                type: 'bar',
+                data: {
+                    labels: rows.map(r => r.product_name),
+                    datasets: [{
+                        label: 'Revenue',
+                        data: rows.map(r => r.total_revenue || 0),
+                        backgroundColor: '#2e7d32'
+                    }]
+                },
+                options: {
+                    indexAxis: 'y', responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { beginAtZero: true } }
+                }
+            });
+        }
+    }
+
+    function renderStockValue(container, data) {
+        destroyChart();
+        const s = data.summary || {};
+        const items = data.items || [];
+
+        const kpis = [
+            ['Products', s.total_items || 0, 'var(--accent)'],
+            ['Total Units', s.total_units || 0, 'var(--text)'],
+            ['Cost Value', formatCurrency(s.total_cost || 0), 'var(--text)'],
+            ['Sale Value', formatCurrency(s.total_value || 0), 'var(--green)'],
+            ['Potential Profit', formatCurrency(s.potential_profit || 0), 'var(--accent)']
+        ];
+
+        const totalCost = items.reduce((s, i) => s + (i.current_stock * (i.cost_price || 0)), 0);
+        const totalValue = items.reduce((s, i) => s + (i.current_stock * (i.selling_price || 0)), 0);
+
+        container.innerHTML = `
+            <div class="stats-grid">${createStats(kpis)}</div>
+            <div class="report-table-wrap">
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th>Product</th><th>SKU</th>
+                            <th class="num">Qty</th><th class="num">Cost</th>
+                            <th class="num">Sale</th><th class="num">Cost Value</th>
+                            <th class="num">Sale Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${items.map(i => {
+                            const stock = i.current_stock || 0;
+                            const cost = i.cost_price || 0;
+                            const sell = i.selling_price || 0;
+                            return `
+                                <tr>
+                                    <td>${escapeHtml(i.product?.name || '')}</td>
+                                    <td class="mono">${escapeHtml(i.product?.sku || '')}</td>
+                                    <td class="num">${stock}</td>
+                                    <td class="num">${formatCurrency(cost)}</td>
+                                    <td class="num">${formatCurrency(sell)}</td>
+                                    <td class="num">${formatCurrency(stock * cost)}</td>
+                                    <td class="num green">${formatCurrency(stock * sell)}</td>
+                                </tr>`;
+                        }).join('')}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="5">GRAND TOTAL</td>
+                            <td class="num">${formatCurrency(totalCost)}</td>
+                            <td class="num green">${formatCurrency(totalValue)}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>`;
+    }
+
+    function renderStockMovement(container, payload, filters) {
+        destroyChart();
+        const summary = payload.summary || {};
+        let rows = payload.data || [];
+        const movementFilter = filters.movement || 'all';
+
+        if (movementFilter === 'fast') {
+            const threshold = Math.max(1, Math.round(
+                rows.reduce((s, r) => s + r.total_quantity_sold, 0) / Math.max(rows.length, 1)
+            ));
+            rows = rows.filter(r => r.total_quantity_sold >= threshold);
+        } else if (movementFilter === 'slow') {
+            const threshold = Math.max(1, Math.round(
+                rows.reduce((s, r) => s + r.total_quantity_sold, 0) / Math.max(rows.length, 1)
+            ));
+            rows = rows.filter(r => r.total_quantity_sold > 0 && r.total_quantity_sold < threshold);
+        } else if (movementFilter === 'stalled') {
+            rows = rows.filter(r => r.total_quantity_sold === 0);
+        }
+
+        const kpis = [
+            ['Products', summary.total_products || rows.length, 'var(--accent)'],
+            ['With Movement', summary.total_products_moved || 0, 'var(--text)'],
+            ['Stalled', summary.total_products_stalled || 0, 'var(--red)'],
+            ['Units Sold', summary.total_units_sold || 0, 'var(--text)'],
+            ['Revenue', formatCurrency(summary.total_revenue || 0), 'var(--green)']
+        ];
+
+        let html = `<div class="stats-grid">${createStats(kpis)}</div>`;
+        if (rows.length) {
+            html += `<div class="chart-wrap no-print">
+                <div class="chart-title">Movement — fast → slow (units sold)</div>
+                <canvas id="reportChart" height="140"></canvas>
+            </div>`;
+        }
+
+        const totalQty = rows.reduce((s, r) => s + r.total_quantity_sold, 0);
+        const totalRev = rows.reduce((s, r) => s + r.total_revenue, 0);
+        const totalProfit = rows.reduce((s, r) => s + r.total_profit, 0);
+        const totalStock = rows.reduce((s, r) => s + r.current_stock, 0);
+
+        html += `
+            <div class="report-table-wrap">
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th>#</th><th>SKU</th><th>Product</th>
+                            <th>Category</th>
+                            <th class="num">Units Sold</th>
+                            <th class="num">Avg/Day</th>
+                            <th class="num">Stock</th>
+                            <th class="num">Days Left</th>
+                            <th class="num">Revenue</th>
+                            <th class="num">Profit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows.map((r, idx) => {
+                            const rowStyle = r.total_quantity_sold === 0 ? 'style="opacity:0.6;"' : '';
+                            return `
+                            <tr ${rowStyle}>
+                                <td class="mono">${idx + 1}</td>
+                                <td class="mono">${escapeHtml(r.sku || '—')}</td>
+                                <td>${escapeHtml(r.product_name || '')}</td>
+                                <td class="muted">${escapeHtml(r.category_name || '')}</td>
+                                <td class="num"><strong>${r.total_quantity_sold || 0}</strong></td>
+                                <td class="num">${r.avg_daily_units ?? '—'}</td>
+                                <td class="num">${r.current_stock ?? 0}</td>
+                                <td class="num">${r.days_of_stock_left === null ? '∞' : (r.days_of_stock_left ?? '—')}</td>
+                                <td class="num green">${formatCurrency(r.total_revenue || 0)}</td>
+                                <td class="num">${formatCurrency(r.total_profit || 0)}</td>
+                            </tr>`;
+                        }).join('')}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="4">GRAND TOTAL</td>
+                            <td class="num">${totalQty}</td>
+                            <td colspan="2"></td>
+                            <td class="num">${totalStock}</td>
+                            <td class="num green">${formatCurrency(totalRev)}</td>
+                            <td class="num">${formatCurrency(totalProfit)}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>`;
+        container.innerHTML = html;
+
+        if (rows.length) {
+            const top = rows.slice(0, 15);
+            currentChart = new Chart(document.getElementById('reportChart'), {
+                type: 'bar',
+                data: {
+                    labels: top.map(r => r.product_name),
+                    datasets: [{
+                        label: 'Units Sold',
+                        data: top.map(r => r.total_quantity_sold),
+                        backgroundColor: top.map(r => r.total_quantity_sold === 0 ? '#666' : '#2e7d32')
+                    }]
+                },
+                options: {
+                    indexAxis: 'y', responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { beginAtZero: true } }
+                }
+            });
+        }
+    }
+
+    function renderEmployeePerformance(container, rows, filters) {
+        destroyChart();
+        if (!Array.isArray(rows)) rows = [];
+        const roleFilter = filters.role || 'all';
+
+        if (roleFilter !== 'all') {
+            rows = rows.filter(r => (r.role || '').toLowerCase() === roleFilter);
+        }
+
+        const totalSales = rows.reduce((s, r) => s + (r.sales_count || 0), 0);
+        const totalRev = rows.reduce((s, r) => s + (r.total_revenue || 0), 0);
+        const totalProfit = rows.reduce((s, r) => s + (r.total_profit || 0), 0);
+        const totalDisc = rows.reduce((s, r) => s + (r.total_discount || 0), 0);
+
+        const kpis = [
+            ['Staff', rows.length, 'var(--accent)'],
+            ['Sales', totalSales, 'var(--text)'],
+            ['Revenue', formatCurrency(totalRev), 'var(--green)'],
+            ['Profit', formatCurrency(totalProfit), 'var(--accent)']
+        ];
+
+        container.innerHTML = `
+            <div class="stats-grid">${createStats(kpis)}</div>
+            <div class="report-table-wrap">
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th>#</th><th>Employee</th><th>Role</th>
+                            <th class="num">Sales</th>
+                            <th class="num">Revenue</th>
+                            <th class="num">Profit</th>
+                            <th class="num">Avg Sale</th>
+                            <th class="num">Discount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows.length ? rows.map((r, i) => `
+                            <tr>
+                                <td class="mono">${i + 1}</td>
+                                <td>${escapeHtml(r.user_name || '')}</td>
+                                <td><span class="pill ${getRolePillClass(r.role)}">${escapeHtml((r.role || '').toUpperCase())}</span></td>
+                                <td class="num">${r.sales_count || 0}</td>
+                                <td class="num green">${formatCurrency(r.total_revenue || 0)}</td>
+                                <td class="num">${formatCurrency(r.total_profit || 0)}</td>
+                                <td class="num">${formatCurrency(r.average_transaction || 0)}</td>
+                                <td class="num">${formatCurrency(r.total_discount || 0)}</td>
+                            </tr>
+                        `).join('') : '<tr><td colspan="8" class="report-empty">No staff sales in this range.</td></tr>'}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="3">GRAND TOTAL</td>
+                            <td class="num">${totalSales}</td>
+                            <td class="num green">${formatCurrency(totalRev)}</td>
+                            <td class="num">${formatCurrency(totalProfit)}</td>
+                            <td></td>
+                            <td class="num">${formatCurrency(totalDisc)}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>`;
+    }
+
+    // ── Users Report ──
+    function renderUsersReport(container, data) {
+        destroyChart();
+        const users = data.users || [];
+
+        const total = users.length;
+        const active = users.filter(u => u.is_active !== false).length;
+        const owners = users.filter(u => u.role === 'owner').length;
+        const managers = users.filter(u => u.role === 'manager').length;
+        const employees = users.filter(u => u.role === 'employee').length;
+
+        const kpis = [
+            ['Total Users', total, 'var(--accent)'],
+            ['Active', active, 'var(--green)'],
+            ['Owners', owners, 'var(--yellow)'],
+            ['Managers', managers, 'var(--blue)'],
+            ['Employees', employees, 'var(--green)']
+        ];
+
+        let html = `<div class="stats-grid">${createStats(kpis)}</div>`;
+
+        if (!users.length) {
+            html += '<div class="report-empty">No users found.</div>';
+            container.innerHTML = html;
+            return;
+        }
+
+        // Sort: owners → managers → employees, then by name
+        const order = { owner: 0, manager: 1, employee: 2 };
+        const sorted = users.slice().sort((a, b) => {
+            const ao = order[a.role] ?? 3;
+            const bo = order[b.role] ?? 3;
+            if (ao !== bo) return ao - bo;
+            return (a.full_name || '').localeCompare(b.full_name || '');
+        });
+
+        const permsLabel = (u) => {
+            const perms = Array.isArray(u.permissions) ? u.permissions : [];
+            if (perms.includes('all')) return '<span style="color:var(--yellow);font-weight:600;">ALL</span>';
+            if (perms.length === 0) return '<span class="muted">None</span>';
+            return `<span class="mono" style="font-size:11px;">${perms.length} granted</span>`;
+        };
+
+        html += `
+            <div class="report-table-wrap">
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Name</th>
+                            <th>Username</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Role</th>
+                            <th>Permissions</th>
+                            <th>Status</th>
+                            <th>Last Login</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${sorted.map((u, i) => `
+                            <tr>
+                                <td class="mono">${i + 1}</td>
+                                <td><strong>${escapeHtml(u.full_name || 'Unnamed')}</strong></td>
+                                <td class="mono" style="font-size:12px;">${u.username ? '@' + escapeHtml(u.username) : '<span class="muted">—</span>'}</td>
+                                <td class="mono" style="font-size:12px;">${escapeHtml(u.email || '—')}</td>
+                                <td class="mono" style="font-size:12px;">${escapeHtml(u.phone || '—')}</td>
+                                <td>
+                                    <span class="pill ${getRolePillClass(u.role)}">
+                                        ${escapeHtml((u.role || '').toUpperCase())}
+                                    </span>
+                                </td>
+                                <td>${permsLabel(u)}</td>
+                                <td>
+                                    ${u.is_active === false
+                                        ? '<span class="pill pill-red">Deactivated</span>'
+                                        : '<span class="pill pill-green">Active</span>'}
+                                </td>
+                                <td class="muted" style="font-size:12px;">${u.last_login ? new Date(u.last_login).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>`;
+
+        container.innerHTML = html;
+    }
+
+    function renderProfitLoss(container, data) {
+        destroyChart();
+        const r = data.revenue || {};
+        const d = data.deductions || {};
+        const p = data.profit || {};
+
+        const kpis = [
+            ['Revenue', formatCurrency(r.total_revenue || 0), 'var(--green)'],
+            ['COGS', formatCurrency(r.total_cost_of_goods || 0), 'var(--red)'],
+            ['Gross Profit', formatCurrency(r.gross_profit || 0), 'var(--accent)'],
+            ['Gross Margin', (r.gross_margin_percentage || 0).toFixed(1) + '%', 'var(--accent)'],
+            ['Net Profit', formatCurrency(p.net_profit || 0), p.net_profit >= 0 ? 'var(--green)' : 'var(--red)'],
+            ['Net Margin', (p.net_margin_percentage || 0).toFixed(1) + '%', 'var(--text)']
+        ];
+
+        container.innerHTML = `
+            <div class="stats-grid">${createStats(kpis)}</div>
+            <div class="report-table-wrap">
+                <table class="report-table">
+                    <tbody>
+                        <tr><td><strong>Revenue</strong></td><td class="num green">${formatCurrency(r.total_revenue || 0)}</td></tr>
+                        <tr><td>Cost of Goods Sold</td><td class="num red">-${formatCurrency(r.total_cost_of_goods || 0)}</td></tr>
+                        <tr><td><strong>Gross Profit</strong></td><td class="num green"><strong>${formatCurrency(r.gross_profit || 0)}</strong></td></tr>
+                        <tr><td>Discounts</td><td class="num red">-${formatCurrency(d.total_discount || 0)}</td></tr>
+                        <tr><td>Tax</td><td class="num red">-${formatCurrency(d.total_tax || 0)}</td></tr>
+                        <tr><td><strong>Net Profit</strong></td><td class="num ${p.net_profit >= 0 ? 'green' : 'red'}"><strong>${formatCurrency(p.net_profit || 0)}</strong></td></tr>
+                    </tbody>
+                </table>
+            </div>`;
+    }
+
+    function renderActiveDiscounts(container, rows) {
+        destroyChart();
+        if (!Array.isArray(rows)) rows = [];
+        if (!rows.length) { container.innerHTML = '<div class="report-empty">No active discounts.</div>'; return; }
+
+        container.innerHTML = `
+            <div class="stats-grid">${createStats([['Active Discounts', rows.length, 'var(--accent)']])}</div>
+            <div class="report-table-wrap">
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th><th>Type</th><th class="num">Value</th>
+                            <th class="num">Min Purchase</th><th class="num">Max Discount</th>
+                            <th>Start</th><th>End</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows.map(r => `
+                            <tr>
+                                <td>${escapeHtml(r.name || '')}</td>
+                                <td>${escapeHtml(r.discount_type || '')}</td>
+                                <td class="num">${r.discount_type === 'percentage' ? (r.discount_value || 0) + '%' : formatCurrency(r.discount_value || 0)}</td>
+                                <td class="num">${formatCurrency(r.min_purchase || 0)}</td>
+                                <td class="num">${r.max_discount ? formatCurrency(r.max_discount) : '—'}</td>
+                                <td class="muted">${r.start_date || ''}</td>
+                                <td class="muted">${r.end_date || ''}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>`;
+    }
+
+    // ── Discounts Applied — UNIFIED (catalog + manual) ──
+    function renderDiscountUsage(container, data) {
+        destroyChart();
+        const merged = data.merged || [];
+
+        const kpis = [
+            ['Total Applications', data.total_count || 0, 'var(--accent)'],
+            ['Catalog Discounts', data.catalog_count || 0, 'var(--purple)'],
+            ['Manual Discounts', data.manual_count || 0, 'var(--blue)'],
+            ['Total Discount Given', formatCurrency(data.total_amount || 0), 'var(--red)']
+        ];
+
+        let html = `<div class="stats-grid">${createStats(kpis)}</div>`;
+
+        if (!merged.length) {
+            html += '<div class="report-empty">No discounts were applied in this range.</div>';
+            container.innerHTML = html;
+            return;
+        }
+
+        html += `
+            <div class="report-table-wrap">
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Receipt</th>
+                            <th>Customer</th>
+                            <th>Source</th>
+                            <th>Discount</th>
+                            <th class="num">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${merged.map(r => `
+                            <tr>
+                                <td class="muted">${r.date ? new Date(r.date).toLocaleString('en-KE', { dateStyle: 'short', timeStyle: 'short' }) : '—'}</td>
+                                <td class="mono">${escapeHtml(r.receipt)}</td>
+                                <td>${escapeHtml(r.customer)}</td>
+                                <td><span class="source-pill ${r.source}">${r.source === 'catalog' ? '🏷️ Catalog' : '✏️ Manual'}</span></td>
+                                <td>${escapeHtml(r.source_label)}</td>
+                                <td class="num red">− ${formatCurrency(r.amount)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="5">GRAND TOTAL</td>
+                            <td class="num red">− ${formatCurrency(data.total_amount)}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>`;
+
+        container.innerHTML = html;
+    }
+
+    // ── Discounted Sales — sales with discount > 0 ──
+    function renderDiscountedSales(container, payload) {
+        destroyChart();
+        const list = payload.discounted || [];
+        const allCount = (payload.all_sales || []).length;
+
+        const totalDiscount = list.reduce((s, x) => s + (Number(x.discount) || 0), 0);
+        const totalRevenue = list.reduce((s, x) => s + (Number(x.total) || 0), 0);
+        const avgDiscount = list.length ? totalDiscount / list.length : 0;
+        const pctOfAll = allCount ? ((list.length / allCount) * 100).toFixed(1) : '0.0';
+
+        const kpis = [
+            ['Discounted Sales', list.length, 'var(--accent)'],
+            ['Total Discount', formatCurrency(totalDiscount), 'var(--red)'],
+            ['Revenue (after disc.)', formatCurrency(totalRevenue), 'var(--green)'],
+            ['Avg Discount', formatCurrency(avgDiscount), 'var(--text)'],
+            ['% of All Sales', pctOfAll + '%', 'var(--text)']
+        ];
+
+        let html = `<div class="stats-grid">${createStats(kpis)}</div>`;
+
+        if (!list.length) {
+            html += '<div class="report-empty">No discounted sales in this range.</div>';
+            container.innerHTML = html;
+            return;
+        }
+
+        html += `
+            <div class="report-table-wrap">
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th>Receipt</th>
+                            <th>Date</th>
+                            <th>Customer</th>
+                            <th>Cashier</th>
+                            <th>Payment</th>
+                            <th class="num">Subtotal</th>
+                            <th class="num">Discount</th>
+                            <th class="num">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${list.map(s => `
+                            <tr>
+                                <td class="mono">${escapeHtml(s.receipt_number || '')}</td>
+                                <td class="muted">${new Date(s.sale_date).toLocaleString('en-KE', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                                <td>${escapeHtml(s.customer_name || 'Walk-in')}</td>
+                                <td>${escapeHtml(s.user?.full_name || '—')}</td>
+                                <td><span class="pill ${getPaymentPillClass(s.payment_method)}">${escapeHtml(s.payment_method || '')}</span></td>
+                                <td class="num">${formatCurrency(s.subtotal || 0)}</td>
+                                <td class="num red">− ${formatCurrency(s.discount || 0)}</td>
+                                <td class="num green">${formatCurrency(s.total || 0)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="5">GRAND TOTAL</td>
+                            <td class="num">${formatCurrency(list.reduce((s, x) => s + (Number(x.subtotal) || 0), 0))}</td>
+                            <td class="num red">− ${formatCurrency(totalDiscount)}</td>
+                            <td class="num green">${formatCurrency(totalRevenue)}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>`;
+
+        container.innerHTML = html;
+    }
+
+    // ── Credit Report ──
+    function renderCredit(container, res, filters) {
+        destroyChart();
+        const rows = res.data || [];
+
+        const payments = [];
+        rows.forEach(s => {
+            (s.credit_payments || []).forEach(p => {
+                payments.push({
+                    sale_receipt: s.receipt_number,
+                    customer: s.customer_name || 'Walk-in',
+                    amount: p.amount || 0,
+                    method: p.payment_method || '',
+                    date: p.payment_date
+                });
+            });
+        });
+
+        const totalCredit = rows.reduce((s, r) => s + (r.total || 0), 0);
+        const totalPaid = rows.reduce((s, r) => s + (Number(r.paid_amount) || 0), 0);
+        const totalBalance = Math.max(0, totalCredit - totalPaid);
+
+        const overdueList = rows.filter(c => creditUrgency(c) === 'overdue' && (Number(c.total) - Number(c.paid_amount)) > 0);
+        const overdueValue = overdueList.reduce((s, c) => s + Math.max(0, (Number(c.total) || 0) - (Number(c.paid_amount) || 0)), 0);
+
+        const kpis = [
+            ['Credit Sales', rows.length, 'var(--accent)'],
+            ['Total Credit', formatCurrency(totalCredit), 'var(--text)'],
+            ['Collected', formatCurrency(totalPaid), 'var(--green)'],
+            ['Outstanding', formatCurrency(totalBalance), 'var(--red)'],
+            ['Overdue', overdueList.length, 'var(--red)'],
+            ['Overdue Value', formatCurrency(overdueValue), 'var(--red)']
+        ];
+
+        let html = `<div class="stats-grid">${createStats(kpis)}</div>`;
+
+        html += `<h4 class="sub-section-title">Credit Sales (${rows.length})</h4>`;
+        if (!rows.length) {
+            html += '<div class="report-empty">No credit sales in this range.</div>';
+        } else {
+            html += `
+                <div class="report-table-wrap">
+                    <table class="report-table">
+                        <thead>
+                            <tr>
+                                <th>Receipt</th>
+                                <th>Sale Date</th>
+                                <th>Customer</th>
+                                <th>Phone</th>
+                                <th class="num">Total</th>
+                                <th class="num">Paid</th>
+                                <th class="num">Balance</th>
+                                <th>Status</th>
+                                <th>Due</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows.map(r => {
+                                const bal = Math.max(0, (Number(r.total) || 0) - (Number(r.paid_amount) || 0));
+                                return `
+                                    <tr>
+                                        <td class="mono">${escapeHtml(r.receipt_number || '')}</td>
+                                        <td class="muted">${new Date(r.sale_date).toLocaleDateString('en-KE')}</td>
+                                        <td>${escapeHtml(r.customer_name || 'Walk-in')}</td>
+                                        <td class="mono">${escapeHtml(r.customer_phone || '—')}</td>
+                                        <td class="num">${formatCurrency(r.total || 0)}</td>
+                                        <td class="num green">${formatCurrency(r.paid_amount || 0)}</td>
+                                        <td class="num red">${formatCurrency(bal)}</td>
+                                        <td><span class="pill ${
+                                            r.payment_status === 'paid' ? 'pill-green' :
+                                            r.payment_status === 'partial' ? 'pill-yellow' :
+                                            'pill-red'
+                                        }">${escapeHtml((r.payment_status || '').toUpperCase())}</span></td>
+                                        <td>${bal > 0 ? creditDaysBadge(r) : '<span class="days-badge nodue">Settled</span>'}</td>
+                                    </tr>`;
+                            }).join('')}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="4">TOTAL</td>
+                                <td class="num">${formatCurrency(totalCredit)}</td>
+                                <td class="num green">${formatCurrency(totalPaid)}</td>
+                                <td class="num red">${formatCurrency(totalBalance)}</td>
+                                <td colspan="2"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>`;
+        }
+
+        html += `<h4 class="sub-section-title">Payments Collected (${payments.length})</h4>`;
+        if (!payments.length) {
+            html += '<div class="report-empty">No payments collected yet.</div>';
+        } else {
+            const paymentsTotal = payments.reduce((s, p) => s + p.amount, 0);
+            html += `
+                <div class="report-table-wrap">
+                    <table class="report-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Receipt</th>
+                                <th>Customer</th>
+                                <th>Method</th>
+                                <th class="num">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${payments.map(p => `
+                                <tr>
+                                    <td class="muted">${p.date ? new Date(p.date).toLocaleString('en-KE', { dateStyle: 'short', timeStyle: 'short' }) : ''}</td>
+                                    <td class="mono">${escapeHtml(p.sale_receipt)}</td>
+                                    <td>${escapeHtml(p.customer)}</td>
+                                    <td><span class="pill ${getPaymentPillClass(p.method)}">${escapeHtml(p.method)}</span></td>
+                                    <td class="num green">${formatCurrency(p.amount)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="4">TOTAL COLLECTED</td>
+                                <td class="num green">${formatCurrency(paymentsTotal)}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>`;
+        }
+
+        container.innerHTML = html;
+    }
+
+    // ============================================
+    // EXPORT
+    // ============================================
+    async function doExport(format) {
+        if (!selectedReportId) { showToast('No report selected', 'warning'); return; }
+        const filters = { ...currentFilters };
+        if (!filters.category) delete filters.category;
+        delete filters._preset;
+        try {
+            showToast(`Preparing ${format.toUpperCase()}...`, 'info');
+            const filename = await exportReport(selectedReportId, filters, format);
+            showToast(`Downloaded: ${filename}`, 'success');
+        } catch (err) {
+            console.error('export failed:', err);
+            showToast('Export failed: ' + err.message, 'error');
+        }
+    }
+
+    // ============================================
+    // INIT
+    // ============================================
+    async function init() {
+        if (!requireAuth()) return;
+        await refreshCurrentUser();
+
+        if (!hasPerm('reports.view')) {
+            showToast('Access denied — you do not have reports permission', 'error');
+            setTimeout(() => window.location.href = 'pos.html', 800);
+            return;
+        }
+
+        if (window.CONFIG?.APP?.NAME) {
+            const t = document.getElementById('appTitle');
+            if (t) t.textContent = CONFIG.APP.NAME;
+        }
+
+        document.getElementById('tabAll').style.display       = hasPerm('sales.view_all')  ? '' : 'none';
+        document.getElementById('tabCredits').style.display   = hasPerm('sales.view_all')  ? '' : 'none';
+        document.getElementById('tabReports').style.display   = hasPerm('reports.view')    ? '' : 'none';
+        document.getElementById('tabLive').style.display      = hasPerm('live.view')       ? '' : 'none';
+        document.getElementById('tabAnalytics').style.display = hasPerm('analytics.view')  ? '' : 'none';
+        document.getElementById('tabUsers').style.display     = hasPerm('users.view')      ? '' : 'none';
+
+        updateUserChip();
+
+        if (restoreState() && selectedReportId) {
+            loadCurrentReport();
+        }
+
+        console.log('✅ Reports page ready');
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

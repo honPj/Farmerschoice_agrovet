@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 // Import our modules (note the .js extension in imports)
 import logger from './utils/logger.js';
@@ -27,6 +29,8 @@ import notificationService from './services/notification.service.js';
 dotenv.config();
 
 // Initialize express app
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -78,6 +82,8 @@ app.use('/api/v1/users', userRoutes);
 
 // Parse URL-encoded requests
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Serve frontend static files
+app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // Request logging
 app.use((req, res, next) => {

@@ -1,0 +1,1336 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FarmersChoice Agrovet — Sell</title>
+    <link rel="icon" type="image/png" href="assets/OIP.webp">
+    <link rel="stylesheet" href="css/shared.css">
+    <style>
+        .pos-grid {
+            display: grid;
+            grid-template-columns: 1fr 420px;
+            gap: 14px;
+            align-items: start;
+        }
+
+        .product-search {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .product-search input {
+            width: 100%;
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 10px 14px;
+            color: var(--text-primary);
+            font-size: 14px;
+            font-family: var(--font-family);
+            outline: none;
+        }
+        .product-search input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.15);
+        }
+
+        .product-list {
+            max-height: 540px;
+            overflow-y: auto;
+        }
+        .product-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            border-top: 1px solid var(--border-color);
+            cursor: pointer;
+            gap: 12px;
+            transition: background 0.15s;
+        }
+        .product-item:first-child { border-top: none; }
+        .product-item:hover { background: rgba(46, 125, 50, 0.06); }
+        .product-item.out-of-stock {
+            opacity: 0.45;
+            cursor: not-allowed;
+            background: transparent;
+        }
+        .product-info { flex: 1; min-width: 0; }
+        .product-name {
+            font-size: 14px; font-weight: 500;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .product-meta {
+            font-size: 11px; color: var(--text-muted);
+            font-family: var(--font-mono); margin-top: 2px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .product-price-col { text-align: right; }
+        .product-price {
+            font-family: var(--font-mono);
+            font-size: 14px; color: var(--accent); font-weight: 500;
+        }
+        .product-stock-tag {
+            font-size: 10px; margin-top: 2px;
+            padding: 1px 6px; border-radius: 8px;
+            display: inline-block;
+        }
+        .stock-ok { background: rgba(46, 125, 50, 0.15); color: #4ade80; }
+        .stock-low { background: rgba(234, 179, 8, 0.15); color: #facc15; }
+        .stock-out { background: rgba(220, 38, 38, 0.15); color: #f87171; }
+
+        /* Cart */
+        .cart-items {
+            max-height: 280px;
+            overflow-y: auto;
+        }
+        .cart-item {
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            gap: 10px;
+            align-items: center;
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .cart-item-name {
+            font-size: 13px; font-weight: 500;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .cart-item-sub {
+            font-size: 11px; color: var(--text-muted);
+            font-family: var(--font-mono); margin-top: 2px;
+        }
+        .qty-control { display: flex; align-items: center; gap: 6px; }
+        .qty-btn {
+            width: 26px; height: 26px; border-radius: 30px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-surface);
+            color: var(--text-primary);
+            font-size: 14px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .qty-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .qty-number {
+            font-family: var(--font-mono); font-size: 14px;
+            min-width: 24px; text-align: center;
+        }
+        .cart-total {
+            font-family: var(--font-mono); font-size: 14px;
+            color: var(--green); text-align: right; min-width: 70px;
+        }
+
+        .cart-footer { padding: 12px 16px; }
+        .cart-row {
+            display: flex; justify-content: space-between;
+            align-items: center;
+            font-size: 13px; margin-bottom: 4px;
+            color: var(--text-secondary);
+        }
+        .cart-row.total {
+            font-size: 20px; font-weight: 600;
+            color: var(--text-primary);
+            border-top: 1px solid var(--border-color);
+            padding-top: 10px; margin-top: 10px;
+        }
+        .cart-row.total span:last-child { color: var(--green); }
+        .cart-row.discount span:last-child { color: var(--red); }
+
+        .discount-chip {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: rgba(231, 76, 60, 0.15);
+            color: var(--red);
+            padding: 2px 8px; border-radius: 12px;
+            font-size: 11px; font-family: var(--font-mono);
+        }
+        .discount-chip .rm {
+            cursor: pointer; opacity: 0.7;
+            font-size: 12px; padding: 0 2px;
+        }
+        .discount-chip .rm:hover { opacity: 1; }
+
+        .discount-btn {
+            background: transparent;
+            border: 1px dashed var(--border-color);
+            color: var(--text-muted);
+            padding: 3px 10px; border-radius: 12px;
+            font-size: 11px; cursor: pointer;
+            font-family: var(--font-family);
+            transition: all 0.15s;
+        }
+        .discount-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            border-style: solid;
+        }
+
+        .payment-methods {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            margin: 8px 0 12px;
+        }
+        .payment-btn {
+            padding: 8px;
+            border-radius: 30px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-surface);
+            color: var(--text-muted);
+            font-size: 12px; font-weight: 500;
+            cursor: pointer; text-align: center;
+            transition: all 0.15s;
+            font-family: var(--font-family);
+        }
+        .payment-btn:hover,
+        .payment-btn.active {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(46, 125, 50, 0.08);
+        }
+
+        /* Credit fields panel */
+        #creditFields {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+        #creditFields.open {
+            max-height: 400px;
+        }
+        .credit-inner {
+            background: rgba(243, 156, 18, 0.06);
+            border: 1px solid rgba(243, 156, 18, 0.3);
+            border-left: 3px solid var(--yellow);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+        .credit-header {
+            font-size: 11px;
+            font-family: var(--font-mono);
+            color: var(--yellow);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        .credit-inner .form-control {
+            margin-bottom: 8px;
+        }
+        .credit-inner .form-control:last-child { margin-bottom: 0; }
+        .balance-line {
+            display: flex;
+            justify-content: space-between;
+            font-family: var(--font-mono);
+            font-size: 14px;
+            padding-top: 8px;
+            margin-top: 8px;
+            border-top: 1px dashed rgba(243, 156, 18, 0.3);
+        }
+        .balance-line span:last-child {
+            color: var(--red);
+            font-weight: 600;
+        }
+
+        .loading-spinner {
+            display: flex; justify-content: center; align-items: center;
+            padding: 30px; color: var(--text-muted); font-size: 14px;
+        }
+        .loading-spinner::before {
+            content: '';
+            width: 24px; height: 24px;
+            border: 3px solid var(--border-color);
+            border-top: 3px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 12px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .error-banner {
+            background: rgba(220, 38, 38, 0.1);
+            border: 1px solid rgba(220, 38, 38, 0.4);
+            color: #f87171;
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            margin: 10px 0;
+            display: flex; justify-content: space-between; align-items: center;
+            gap: 12px;
+        }
+
+        .empty-state {
+            padding: 32px 16px; text-align: center;
+            color: var(--text-muted); font-size: 14px;
+        }
+
+        .receipt {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-word;
+            background: var(--bg-primary);
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            max-height: 460px;
+            overflow-y: auto;
+        }
+
+        /* Discount Modal */
+        #discountModal .modal {
+            max-width: 620px;
+            width: 95%;
+        }
+        .discount-tabs {
+            display: flex;
+            gap: 4px;
+            border-bottom: 1px solid var(--border-color);
+            padding: 0 20px;
+        }
+        .discount-tab {
+            padding: 12px 16px;
+            font-size: 13px;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+            font-family: var(--font-family);
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+        }
+        .discount-tab:hover { color: var(--text-primary); }
+        .discount-tab.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+            font-weight: 600;
+        }
+        .discount-tab-content {
+            padding: 16px 20px 20px;
+            min-height: 260px;
+        }
+        .discount-card {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 12px 14px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .discount-card:hover {
+            border-color: var(--accent);
+            background: rgba(46, 125, 50, 0.05);
+        }
+        .discount-card.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .discount-card .dc-icon {
+            font-size: 22px;
+            width: 32px; text-align: center;
+        }
+        .discount-card .dc-info { flex: 1; min-width: 0; }
+        .discount-card .dc-name {
+            font-size: 13px; font-weight: 600;
+            margin-bottom: 2px;
+        }
+        .discount-card .dc-meta {
+            font-size: 11px; color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+        .discount-card .dc-value {
+            font-family: var(--font-mono);
+            color: var(--green);
+            font-weight: 600;
+            font-size: 14px;
+            text-align: right;
+        }
+        .discount-card .dc-value small {
+            display: block;
+            color: var(--text-muted);
+            font-size: 10px;
+            font-weight: 400;
+        }
+
+        .manual-discount-row {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+        .manual-discount-row input {
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 10px 14px;
+            color: var(--text-primary);
+            font-size: 14px;
+            outline: none;
+            font-family: var(--font-mono);
+        }
+        .manual-discount-row input:focus {
+            border-color: var(--accent);
+        }
+        .seg-toggle {
+            display: flex;
+            gap: 0;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+        }
+        .seg-toggle button {
+            padding: 10px 16px;
+            background: var(--bg-surface);
+            color: var(--text-muted);
+            border: none;
+            cursor: pointer;
+            font-family: var(--font-mono);
+            font-size: 13px;
+            transition: all 0.15s;
+        }
+        .seg-toggle button.active {
+            background: var(--accent);
+            color: #ffffff;
+        }
+
+        .manual-preview {
+            background: var(--bg-primary);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            font-family: var(--font-mono);
+            font-size: 13px;
+            line-height: 1.8;
+        }
+        .manual-preview .row {
+            display: flex;
+            justify-content: space-between;
+        }
+        .manual-preview .row.total {
+            border-top: 1px solid var(--border-color);
+            padding-top: 8px;
+            margin-top: 8px;
+            font-size: 15px;
+            font-weight: 600;
+        }
+        .manual-preview .row .red { color: var(--red); }
+        .manual-preview .row .green { color: var(--green); }
+
+        @media (max-width: 1024px) {
+            .pos-grid { grid-template-columns: 1fr 340px; }
+        }
+        @media (max-width: 768px) {
+            .pos-grid { grid-template-columns: 1fr; gap: 14px; }
+            .cart-items { max-height: 240px; }
+            .product-list { max-height: 360px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- HEADER -->
+    <header>
+        <div class="header-left">
+            <div class="header-logo">FC</div>
+            <div>
+                <div class="header-title" id="appTitle">FarmersChoice Agrovet</div>
+                <div class="header-sub" id="headerClock"></div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="theme-toggle-wrapper" onclick="toggleTheme()" role="button" tabindex="0">
+                <span class="toggle-icon" id="themeIcon">🌙</span>
+                <div class="theme-toggle-switch"><div class="toggle-slider"></div></div>
+            </div>
+            <div class="user-chip" id="userChip">
+                <div class="avatar" id="userAvatar">🧑‍💼</div>
+                <span id="userName">User</span>
+                <span style="color:var(--text-muted);font-size:11px;font-family:var(--font-mono);" id="userRole">EMPLOYEE</span>
+            </div>
+            <button class="btn-ghost btn-sm" onclick="handleLogout()">Logout</button>
+        </div>
+    </header>
+
+    <!-- NAV -->
+    <div class="navbar" id="navbar">
+        <a href="pos.html" class="nav-tab active">Sell</a>
+        <a href="stock.html" class="nav-tab">Stock</a>
+        <a href="mysales.html" class="nav-tab">My Sales</a>
+        <a href="allsales.html" class="nav-tab" id="tabAll" style="display:none;">All Sales</a>
+        <a href="credits.html" class="nav-tab" id="tabCredits" style="display:none;">Credits</a>
+        <a href="users.html" class="nav-tab" id="tabUsers" style="display:none;">Users</a>
+        <a href="reports.html" class="nav-tab" id="tabReports" style="display:none;">Reports</a>
+        <a href="live.html" class="nav-tab" id="tabLive" style="display:none;">Live</a>
+        <a href="analytics.html" class="nav-tab" id="tabAnalytics" style="display:none;">Analytics</a>
+    </div>
+
+    <!-- POS PAGE -->
+    <div class="page">
+        <div class="pos-grid">
+
+            <!-- PRODUCTS PANEL -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span>Products</span>
+                    <span id="productCount" style="color:var(--accent);font-family:var(--font-mono);font-size:12px;"></span>
+                </div>
+                <div class="product-search">
+                    <input type="text" id="productSearch" placeholder="Search by name or SKU..." oninput="renderProducts()" autocomplete="off" />
+                </div>
+                <div class="product-list" id="productList">
+                    <div class="loading-spinner">Loading products...</div>
+                </div>
+            </div>
+
+            <!-- CART PANEL -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span>Cart <span id="cartCount" style="color:var(--accent);font-family:var(--font-mono);font-size:12px;"></span></span>
+                    <button class="btn-ghost btn-sm" onclick="clearCart()">Clear</button>
+                </div>
+                <div class="cart-items" id="cartItems">
+                    <div class="empty-state">Tap a product to add</div>
+                </div>
+                <div class="cart-footer">
+                    <div class="cart-row">
+                        <span>Items</span>
+                        <span class="mono" id="cartItemCount">0</span>
+                    </div>
+                    <div class="cart-row">
+                        <span>Subtotal</span>
+                        <span class="mono" id="cartSubtotal">KSh 0</span>
+                    </div>
+                    <div class="cart-row discount" id="discountRow" style="display:none;">
+                        <span>
+                            Discount
+                            <span class="discount-chip" id="discountChip" style="margin-left:6px;"></span>
+                        </span>
+                        <span class="mono" id="cartDiscount">− KSh 0</span>
+                    </div>
+                    <div style="display:flex;justify-content:flex-end;margin-bottom:6px;">
+                        <button class="discount-btn" onclick="openDiscountModal()" id="discountBtn">🎁 Add Discount</button>
+                    </div>
+                    <div class="cart-row total">
+                        <span>Total</span>
+                        <span class="mono" id="cartTotal">KSh 0</span>
+                    </div>
+
+                    <div style="margin:12px 0 6px;font-size:11px;color:var(--text-muted);font-family:var(--font-mono);letter-spacing:0.5px;">PAYMENT METHOD</div>
+                    <div class="payment-methods">
+                        <div class="payment-btn active" data-payment="Cash" onclick="selectPayment(this)">💰 Cash</div>
+                        <div class="payment-btn" data-payment="M-Pesa" onclick="selectPayment(this)">📱 M-Pesa</div>
+                        <div class="payment-btn" data-payment="Bank" onclick="selectPayment(this)">🏦 Bank</div>
+                        <div class="payment-btn" data-payment="Credit" onclick="selectPayment(this)">📋 Credit</div>
+                    </div>
+
+                    <!-- Credit fields (only visible when Credit selected) -->
+                    <div id="creditFields">
+                        <div class="credit-inner">
+                            <div class="credit-header">📋 Credit Sale Details</div>
+                            <div class="form-control">
+                                <label for="depositAmount">Deposit Paid Now (KSh)</label>
+                                <input type="number" id="depositAmount" min="0" step="1" placeholder="0" oninput="updateCreditBalance()" />
+                            </div>
+                            <div class="form-control">
+                                <label for="dueDate">Balance Due By</label>
+                                <input type="date" id="dueDate" />
+                            </div>
+                            <div class="form-control">
+                                <label for="customerPhone">Customer Phone</label>
+                                <input type="tel" id="customerPhone" placeholder="0712 345 678" autocomplete="off" />
+                            </div>
+                            <div class="balance-line">
+                                <span>Balance Due:</span>
+                                <span id="balanceDue">KSh 0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-control" style="margin-bottom:10px;">
+                        <label for="customerName">Customer (optional)</label>
+                        <input type="text" id="customerName" placeholder="Walk-in" autocomplete="off" />
+                    </div>
+
+                    <button class="btn-primary" style="width:100%;justify-content:center;padding:12px;font-size:15px;" onclick="completeSale()" id="completeSaleBtn">
+                        Complete Sale
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DISCOUNT MODAL -->
+    <div class="overlay" id="discountModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>🎁 Apply Discount</h3>
+                <button class="btn-ghost btn-sm" onclick="closeModal('discountModal')">Close</button>
+            </div>
+            <div class="discount-tabs">
+                <button class="discount-tab active" id="tabActiveBtn" onclick="switchDiscountTab('active')">Active Discounts</button>
+                <button class="discount-tab" id="tabManualBtn" onclick="switchDiscountTab('manual')">Manual Entry</button>
+            </div>
+
+            <div class="discount-tab-content" id="tabActiveContent">
+                <div id="activeDiscountsList">
+                    <div class="loading-spinner">Loading discounts...</div>
+                </div>
+            </div>
+
+            <div class="discount-tab-content" id="tabManualContent" style="display:none;">
+                <div class="manual-discount-row">
+                    <input type="number" id="manualDiscountInput" min="0" step="1" placeholder="0" oninput="updateManualPreview()" />
+                    <div class="seg-toggle">
+                        <button class="active" id="segKsh" onclick="setDiscountUnit('ksh')">KSh</button>
+                        <button id="segPct" onclick="setDiscountUnit('pct')">%</button>
+                    </div>
+                </div>
+                <div class="manual-preview" id="manualPreview"></div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn-ghost btn-sm" onclick="closeModal('discountModal')">Cancel</button>
+                <button class="btn-primary-solid btn-sm" onclick="applyManualDiscount()" id="applyManualBtn" style="display:none;">Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- RECEIPT MODAL -->
+    <div class="overlay" id="receiptModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Receipt</h3>
+                <button class="btn-ghost btn-sm" onclick="closeModal('receiptModal')">Close</button>
+            </div>
+            <div class="modal-body">
+                <div class="receipt" id="receiptContent"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-ghost btn-sm" onclick="printReceipt()">🖨️ Print</button>
+                <button class="btn-ghost btn-sm" onclick="downloadReceipt()">⬇️ Download</button>
+                <button class="btn-primary-solid btn-sm" onclick="closeModal('receiptModal')">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="js/config.js"></script>
+    <script src="js/env.js"></script>
+    <script src="js/shared.js"></script>
+
+    <script>
+    // ============================================
+    // STATE
+    // ============================================
+    let products = [];
+    let cart = [];
+    let paymentMethod = 'Cash';
+    let isSubmitting = false;
+    let lastReceiptText = '';
+
+    let appliedDiscount = null;    // { type: 'fixed'|'percentage', value, amount, name?, id? }
+    let manualDiscountUnit = 'ksh';
+    let activeDiscountsCache = null;
+
+    const MAIN_BRANCH_ID = '22222222-2222-2222-2222-222222222222';
+
+    // ============================================
+    // HELPERS
+    // ============================================
+    function escapeHtml(s) {
+        return String(s ?? '').replace(/[&<>"']/g, c => ({
+            '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+        }[c]));
+    }
+
+    function mapProductFromBackend(p) {
+        const inv = Array.isArray(p.inventory) && p.inventory.length ? p.inventory[0] : null;
+        return {
+            id: p.id,
+            name: p.name,
+            sku: p.sku || '',
+            unit: p.unit_of_measure || 'piece',
+            category: p.categories?.name || '',
+            buy: inv?.cost_price ?? p.cost_price ?? 0,
+            sell: inv?.selling_price ?? p.selling_price ?? 0,
+            stock: p.total_stock ?? inv?.current_stock ?? p.quantity ?? 0,
+            minLevel: inv?.min_stock_level ?? 5,
+            is_active: p.is_active !== false
+        };
+    }
+
+    function getSubtotal() {
+        return cart.reduce((s, c) => s + c.sell * c.qty, 0);
+    }
+
+    function getDiscountAmount() {
+        if (!appliedDiscount) return 0;
+        const subtotal = getSubtotal();
+        if (appliedDiscount.type === 'percentage') {
+            let amt = subtotal * (appliedDiscount.value / 100);
+            if (appliedDiscount.max_discount) amt = Math.min(amt, appliedDiscount.max_discount);
+            return Math.round(amt);
+        }
+        return Math.round(Math.min(appliedDiscount.value, subtotal));
+    }
+
+    function getTotal() {
+        return Math.max(0, getSubtotal() - getDiscountAmount());
+    }
+
+    function getDeposit() {
+        if (paymentMethod !== 'Credit') return 0;
+        const v = parseFloat(document.getElementById('depositAmount').value);
+        return isNaN(v) || v < 0 ? 0 : v;
+    }
+
+    function getBalance() {
+        return Math.max(0, getTotal() - getDeposit());
+    }
+
+    // ============================================
+    // LOAD PRODUCTS
+    // ============================================
+    async function loadProducts() {
+        const list = document.getElementById('productList');
+        list.innerHTML = '<div class="loading-spinner">Loading products...</div>';
+
+        try {
+            const data = await fetchProducts();
+            products = data.map(mapProductFromBackend);
+            renderProducts();
+            showToast(`Loaded ${products.length} products`, 'success');
+        } catch (err) {
+            console.error('loadProducts failed:', err);
+            list.innerHTML = `
+                <div class="error-banner">
+                    <div>
+                        <strong>Could not load products.</strong><br>
+                        <span style="font-size:12px;">${escapeHtml(err.message || 'Unknown error')}</span>
+                    </div>
+                    <button class="btn-ghost btn-sm" onclick="loadProducts()">Retry</button>
+                </div>`;
+            showToast('Failed to load products', 'error');
+        }
+    }
+
+    // ============================================
+    // RENDER PRODUCTS
+    // ============================================
+    function renderProducts() {
+        const query = (document.getElementById('productSearch').value || '').trim().toLowerCase();
+
+        const filtered = products.filter(p => {
+            if (!p.is_active) return false;
+            if (query) {
+                const hit = p.name.toLowerCase().includes(query)
+                         || (p.sku || '').toLowerCase().includes(query);
+                if (!hit) return false;
+            }
+            return true;
+        });
+
+        filtered.sort((a, b) => {
+            const aOut = a.stock <= 0 ? 1 : 0;
+            const bOut = b.stock <= 0 ? 1 : 0;
+            if (aOut !== bOut) return aOut - bOut;
+            return a.name.localeCompare(b.name);
+        });
+
+        document.getElementById('productCount').textContent = filtered.length + ' items';
+
+        const list = document.getElementById('productList');
+        if (!filtered.length) {
+            list.innerHTML = '<div class="empty-state">' +
+                (products.length ? 'No products match your search.' : 'No products found. Add some in Stock page.') +
+                '</div>';
+            return;
+        }
+
+        list.innerHTML = filtered.map(p => {
+            const out = p.stock <= 0;
+            const low = !out && p.stock <= p.minLevel;
+            const stockClass = out ? 'stock-out' : (low ? 'stock-low' : 'stock-ok');
+            const stockLabel = out ? 'Out' : `${p.stock} ${p.unit}${p.stock === 1 ? '' : 's'}`;
+            const meta = [p.sku, p.category].filter(Boolean).join(' · ');
+
+            return `
+                <div class="product-item ${out ? 'out-of-stock' : ''}"
+                     ${out ? '' : `onclick="addToCart('${p.id}')"`}>
+                    <div class="product-info">
+                        <div class="product-name">${escapeHtml(p.name)}</div>
+                        ${meta ? `<div class="product-meta">${escapeHtml(meta)}</div>` : ''}
+                    </div>
+                    <div class="product-price-col">
+                        <div class="product-price">${formatCurrency(p.sell)}</div>
+                        <span class="product-stock-tag ${stockClass}">${stockLabel}</span>
+                    </div>
+                </div>`;
+        }).join('');
+    }
+
+    // ============================================
+    // CART
+    // ============================================
+    function addToCart(productId) {
+        const p = products.find(x => x.id === productId);
+        if (!p) { showToast('Product not found', 'error'); return; }
+        if (p.stock <= 0) { showToast('Out of stock', 'error'); return; }
+
+        const existing = cart.find(c => c.product_id === productId);
+        const currentQty = existing ? existing.qty : 0;
+
+        if (currentQty + 1 > p.stock) {
+            showToast(`Only ${p.stock} ${p.unit}(s) available`, 'error');
+            return;
+        }
+
+        if (existing) {
+            existing.qty += 1;
+        } else {
+            cart.push({
+                product_id: p.id,
+                name: p.name,
+                sku: p.sku,
+                unit: p.unit,
+                sell: p.sell,
+                buy: p.buy,
+                qty: 1
+            });
+        }
+        renderCart();
+    }
+
+    function changeQty(productId, delta) {
+        const item = cart.find(c => c.product_id === productId);
+        if (!item) return;
+        const p = products.find(x => x.id === productId);
+        if (!p) return;
+
+        const next = item.qty + delta;
+        if (next < 1) {
+            cart = cart.filter(c => c.product_id !== productId);
+        } else if (next > p.stock) {
+            showToast(`Only ${p.stock} ${p.unit}(s) available`, 'error');
+            return;
+        } else {
+            item.qty = next;
+        }
+        renderCart();
+    }
+
+    function renderCart() {
+        const totalQty = cart.reduce((s, c) => s + c.qty, 0);
+        const subtotal = getSubtotal();
+        const discount = getDiscountAmount();
+        const total = getTotal();
+
+        document.getElementById('cartItemCount').textContent = totalQty;
+        document.getElementById('cartSubtotal').textContent = formatCurrency(subtotal);
+        document.getElementById('cartTotal').textContent = formatCurrency(total);
+        document.getElementById('cartCount').textContent = totalQty ? `(${totalQty})` : '';
+
+        // Discount row
+        const dRow = document.getElementById('discountRow');
+        const dBtn = document.getElementById('discountBtn');
+        const dChip = document.getElementById('discountChip');
+
+        if (appliedDiscount) {
+            dRow.style.display = '';
+            document.getElementById('cartDiscount').textContent = '− ' + formatCurrency(discount);
+            let label = '';
+            if (appliedDiscount.name) label = appliedDiscount.name;
+            else if (appliedDiscount.type === 'percentage') label = appliedDiscount.value + '%';
+            else label = formatCurrency(appliedDiscount.value);
+            dChip.innerHTML = `${escapeHtml(label)} <span class="rm" onclick="event.stopPropagation();removeDiscount()" title="Remove discount">✕</span>`;
+            dBtn.textContent = '🎁 Change Discount';
+        } else {
+            dRow.style.display = 'none';
+            dBtn.textContent = '🎁 Add Discount';
+        }
+
+        const wrap = document.getElementById('cartItems');
+        if (!cart.length) {
+            wrap.innerHTML = '<div class="empty-state">Tap a product to add</div>';
+            updateCreditBalance();
+            return;
+        }
+
+        wrap.innerHTML = cart.map(c => `
+            <div class="cart-item">
+                <div>
+                    <div class="cart-item-name">${escapeHtml(c.name)}</div>
+                    <div class="cart-item-sub">${formatCurrency(c.sell)} × ${c.qty} ${escapeHtml(c.unit)}</div>
+                </div>
+                <div class="qty-control">
+                    <button class="qty-btn" onclick="changeQty('${c.product_id}', -1)">−</button>
+                    <span class="qty-number">${c.qty}</span>
+                    <button class="qty-btn" onclick="changeQty('${c.product_id}', 1)">+</button>
+                </div>
+                <div class="cart-total">${formatCurrency(c.sell * c.qty)}</div>
+            </div>
+        `).join('');
+
+        updateCreditBalance();
+    }
+
+    function selectPayment(el) {
+        paymentMethod = el.dataset.payment;
+        document.querySelectorAll('.payment-btn').forEach(b => b.classList.remove('active'));
+        el.classList.add('active');
+
+        const creditFields = document.getElementById('creditFields');
+        if (paymentMethod === 'Credit') {
+            creditFields.classList.add('open');
+            // Default due date = 14 days from now
+            const dd = document.getElementById('dueDate');
+            if (!dd.value) {
+                const d = new Date();
+                d.setDate(d.getDate() + 14);
+                dd.value = d.toISOString().split('T')[0];
+            }
+        } else {
+            creditFields.classList.remove('open');
+        }
+        updateCreditBalance();
+    }
+
+    function updateCreditBalance() {
+        const balEl = document.getElementById('balanceDue');
+        if (!balEl) return;
+        const total = getTotal();
+        const deposit = getDeposit();
+        const balance = Math.max(0, total - deposit);
+        balEl.textContent = formatCurrency(balance);
+        balEl.style.color = balance === 0 ? 'var(--green)' : 'var(--red)';
+    }
+
+    function clearCart() {
+        if (!cart.length) return;
+        if (!confirm('Clear the cart?')) return;
+        cart = [];
+        appliedDiscount = null;
+        renderCart();
+        showToast('Cart cleared', 'info');
+    }
+
+    // ============================================
+    // DISCOUNT MODAL
+    // ============================================
+    function openDiscountModal() {
+        if (!cart.length) {
+            showToast('Add items to cart first', 'warning');
+            return;
+        }
+        // Default: show active tab, but if any applied → show current state
+        switchDiscountTab('active');
+        loadActiveDiscounts();
+        openModal('discountModal');
+    }
+
+    function switchDiscountTab(tab) {
+        const isActive = tab === 'active';
+        document.getElementById('tabActiveBtn').classList.toggle('active', isActive);
+        document.getElementById('tabManualBtn').classList.toggle('active', !isActive);
+        document.getElementById('tabActiveContent').style.display = isActive ? '' : 'none';
+        document.getElementById('tabManualContent').style.display = isActive ? 'none' : '';
+        document.getElementById('applyManualBtn').style.display = isActive ? 'none' : '';
+
+        if (!isActive) {
+            updateManualPreview();
+        }
+    }
+
+    async function loadActiveDiscounts() {
+        const wrap = document.getElementById('activeDiscountsList');
+        if (activeDiscountsCache) {
+            renderActiveDiscounts(activeDiscountsCache);
+            return;
+        }
+        wrap.innerHTML = '<div class="loading-spinner">Loading discounts...</div>';
+
+        try {
+            const res = await apiRequest('/discounts/active');
+            activeDiscountsCache = res.data || [];
+            renderActiveDiscounts(activeDiscountsCache);
+        } catch (err) {
+            console.error('loadActiveDiscounts failed:', err);
+            wrap.innerHTML = `
+                <div class="error-banner">
+                    <div>Could not load discounts: ${escapeHtml(err.message)}</div>
+                    <button class="btn-ghost btn-sm" onclick="activeDiscountsCache=null;loadActiveDiscounts()">Retry</button>
+                </div>`;
+        }
+    }
+
+    function renderActiveDiscounts(list) {
+        const wrap = document.getElementById('activeDiscountsList');
+        const subtotal = getSubtotal();
+
+        if (!list || !list.length) {
+            wrap.innerHTML = '<div class="empty-state">No active discounts right now.<br><small>Use the Manual tab to apply a custom discount.</small></div>';
+            return;
+        }
+
+        wrap.innerHTML = list.map(d => {
+            const isPct = d.discount_type === 'percentage';
+            const valueLabel = isPct ? `${d.discount_value}%` : formatCurrency(d.discount_value);
+            const minReq = Number(d.min_purchase) || 0;
+            const eligible = subtotal >= minReq;
+            const reason = !eligible ? `Requires min. purchase ${formatCurrency(minReq)}` : '';
+            const maxNote = d.max_discount ? `Max ${formatCurrency(d.max_discount)}` : '';
+
+            return `
+                <div class="discount-card ${eligible ? '' : 'disabled'}"
+                     onclick="${eligible ? `applyActiveDiscount('${d.id}')` : ''}">
+                    <div class="dc-icon">🎁</div>
+                    <div class="dc-info">
+                        <div class="dc-name">${escapeHtml(d.name || 'Discount')}</div>
+                        <div class="dc-meta">
+                            ${eligible ? (d.description ? escapeHtml(d.description) : 'Tap to apply') : escapeHtml(reason)}
+                            ${maxNote && eligible ? ' · ' + maxNote : ''}
+                        </div>
+                    </div>
+                    <div class="dc-value">
+                        ${valueLabel}
+                        <small>${isPct ? 'off' : 'off'}</small>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function applyActiveDiscount(id) {
+        const d = activeDiscountsCache.find(x => x.id === id);
+        if (!d) { showToast('Discount not found', 'error'); return; }
+
+        const subtotal = getSubtotal();
+        const minReq = Number(d.min_purchase) || 0;
+        if (subtotal < minReq) {
+            showToast(`Minimum purchase ${formatCurrency(minReq)} required`, 'error');
+            return;
+        }
+
+        appliedDiscount = {
+            id: d.id,
+            name: d.name,
+            type: d.discount_type === 'percentage' ? 'percentage' : 'fixed',
+            value: Number(d.discount_value) || 0,
+            max_discount: d.max_discount ? Number(d.max_discount) : null
+        };
+
+        renderCart();
+        closeModal('discountModal');
+        showToast(`Discount applied: ${d.name}`, 'success');
+    }
+
+    function removeDiscount() {
+        appliedDiscount = null;
+        renderCart();
+        showToast('Discount removed', 'info');
+    }
+
+    // ---- Manual discount ----
+    function setDiscountUnit(unit) {
+        manualDiscountUnit = unit;
+        document.getElementById('segKsh').classList.toggle('active', unit === 'ksh');
+        document.getElementById('segPct').classList.toggle('active', unit === 'pct');
+        updateManualPreview();
+    }
+
+    function updateManualPreview() {
+        const input = document.getElementById('manualDiscountInput');
+        const preview = document.getElementById('manualPreview');
+        const raw = parseFloat(input.value);
+
+        if (isNaN(raw) || raw <= 0) {
+            preview.innerHTML = '<div class="row"><span>Enter a discount to preview</span><span></span></div>';
+            return;
+        }
+
+        const subtotal = getSubtotal();
+        let amount = 0;
+        if (manualDiscountUnit === 'pct') {
+            if (raw > 100) {
+                preview.innerHTML = '<div class="row"><span class="red">Percentage cannot exceed 100%</span><span></span></div>';
+                return;
+            }
+            amount = Math.round(subtotal * (raw / 100));
+        } else {
+            if (raw > subtotal) {
+                preview.innerHTML = `<div class="row"><span class="red">Amount cannot exceed subtotal</span><span></span></div>`;
+                return;
+            }
+            amount = Math.round(raw);
+        }
+
+        const after = subtotal - amount;
+        preview.innerHTML = `
+            <div class="row"><span>Subtotal</span><span>${formatCurrency(subtotal)}</span></div>
+            <div class="row"><span>Discount</span><span class="red">− ${formatCurrency(amount)}</span></div>
+            <div class="row total"><span>New Total</span><span class="green">${formatCurrency(after)}</span></div>
+        `;
+    }
+
+    function applyManualDiscount() {
+        const raw = parseFloat(document.getElementById('manualDiscountInput').value);
+        const subtotal = getSubtotal();
+
+        if (isNaN(raw) || raw <= 0) {
+            showToast('Enter a discount value', 'error');
+            return;
+        }
+        if (manualDiscountUnit === 'pct') {
+            if (raw > 100) { showToast('Percentage cannot exceed 100%', 'error'); return; }
+            appliedDiscount = {
+                type: 'percentage',
+                value: raw,
+                name: `${raw}% manual`
+            };
+        } else {
+            if (raw > subtotal) { showToast('Amount cannot exceed subtotal', 'error'); return; }
+            appliedDiscount = {
+                type: 'fixed',
+                value: raw,
+                name: `${formatCurrency(raw)} manual`
+            };
+        }
+
+        renderCart();
+        closeModal('discountModal');
+        showToast(`Discount applied: ${appliedDiscount.name}`, 'success');
+    }
+
+    // ============================================
+    // COMPLETE SALE
+    // ============================================
+    async function completeSale() {
+        if (isSubmitting) return;
+        if (!cart.length) { showToast('Cart is empty', 'error'); return; }
+
+        // Stock check
+        for (const item of cart) {
+            const p = products.find(x => x.id === item.product_id);
+            if (!p) { showToast(`"${item.name}" no longer exists`, 'error'); return; }
+            if (p.stock < item.qty) {
+                showToast(`Not enough stock for "${item.name}". Available: ${p.stock}`, 'error');
+                return;
+            }
+        }
+
+        const customer = document.getElementById('customerName').value.trim() || 'Walk-in';
+        const customerPhone = document.getElementById('customerPhone')?.value.trim() || '';
+        const dueDate = document.getElementById('dueDate')?.value || null;
+        const deposit = getDeposit();
+        const total = getTotal();
+
+        let paymentStatus = 'completed';
+        let finalPaidAmount = 0;
+        let finalDueDate = null;
+
+        if (paymentMethod === 'Credit') {
+            if (!dueDate) { showToast('Please set a due date for the credit', 'error'); return; }
+            if (deposit < 0) { showToast('Deposit cannot be negative', 'error'); return; }
+            if (deposit > total) { showToast('Deposit cannot exceed total', 'error'); return; }
+
+            finalPaidAmount = deposit;
+            finalDueDate = dueDate;
+
+            if (deposit === 0) paymentStatus = 'pending';
+            else if (deposit < total) paymentStatus = 'partial';
+            else paymentStatus = 'completed';   // paid in full immediately
+        }
+
+        const payload = {
+            branch_id: MAIN_BRANCH_ID,
+            customer_name: customer,
+            customer_phone: customerPhone || undefined,
+            payment_method: paymentMethod,
+            payment_status: paymentStatus,
+            paid_amount: finalPaidAmount,
+            due_date: finalDueDate,
+            discount: getDiscountAmount(),
+            tax: 0,
+            items: cart.map(c => ({
+                product_id: c.product_id,
+                quantity: c.qty,
+                unit_price: c.sell
+            }))
+        };
+
+        console.log('🧾 SALE PAYLOAD:', payload);
+
+        const btn = document.getElementById('completeSaleBtn');
+        isSubmitting = true;
+        btn.disabled = true;
+        btn.textContent = 'Processing...';
+
+        try {
+            const result = await createSale(payload);
+            const receiptNo = result?.receipt_number || 'RCP-' + Date.now();
+            const saleRow = result?.sale || {};
+            const items = result?.items || [];
+
+            const receiptSale = {
+                receipt_number: receiptNo,
+                sale_id: saleRow.id || '',
+                sale_date: saleRow.sale_date || new Date().toISOString(),
+                customer_name: saleRow.customer_name || customer,
+                payment_method: saleRow.payment_method || paymentMethod,
+                subtotal: saleRow.subtotal ?? 0,
+                discount: saleRow.discount ?? 0,
+                tax: saleRow.tax ?? 0,
+                total: saleRow.total ?? 0,
+                paid_amount: saleRow.paid_amount ?? 0,
+                due_date: saleRow.due_date ?? null,
+                payment_status: saleRow.payment_status ?? paymentStatus,
+                items: items.map(i => ({
+                    name: i.product_name,
+                    qty: i.quantity,
+                    unit_price: i.unit_price,
+                    total: i.total_price
+                }))
+            };
+
+            showReceipt(receiptSale);
+            showToast(`Sale complete — ${receiptNo}`, 'success');
+
+            // Reset UI
+            cart = [];
+            appliedDiscount = null;
+            renderCart();
+            document.getElementById('customerName').value = '';
+            document.getElementById('customerPhone').value = '';
+            document.getElementById('depositAmount').value = '';
+            document.getElementById('dueDate').value = '';
+            document.getElementById('creditFields').classList.remove('open');
+            document.querySelectorAll('.payment-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector('[data-payment="Cash"]').classList.add('active');
+            paymentMethod = 'Cash';
+
+            await loadProducts();
+        } catch (err) {
+            console.error('completeSale failed:', err);
+            showToast('Sale failed: ' + err.message, 'error');
+        } finally {
+            isSubmitting = false;
+            btn.disabled = false;
+            btn.textContent = 'Complete Sale';
+        }
+    }
+
+    // ============================================
+    // RECEIPT
+    // ============================================
+    function showReceipt(sale) {
+        const cfg = window.CONFIG?.RECEIPT || {};
+        const header = cfg.HEADER || 'FarmersChoice Agrovet';
+        const sub = cfg.SUBHEADER || 'Nairobi, Kenya';
+        const footer = cfg.FOOTER || 'Thank you for your business!';
+        const sep = '─'.repeat(42);
+
+        const user = getCurrentUser();
+        const dt = new Date(sale.sale_date).toLocaleString('en-KE', {
+            dateStyle: 'medium', timeStyle: 'short'
+        });
+
+        const lines = [];
+        lines.push(header);
+        lines.push(sub);
+        lines.push(sep);
+        lines.push(`Receipt #:  ${sale.receipt_number}`);
+        lines.push(`Date:       ${dt}`);
+        lines.push(`Cashier:    ${user?.full_name || user?.name || 'User'}`);
+        lines.push(`Customer:   ${sale.customer_name}`);
+        lines.push(sep);
+        for (const it of sale.items) {
+            lines.push(it.name);
+            lines.push(`  ${it.qty} × ${formatCurrency(it.unit_price)} = ${formatCurrency(it.total)}`);
+        }
+        lines.push(sep);
+        lines.push(`Subtotal:   ${formatCurrency(sale.subtotal)}`);
+        if (sale.discount > 0) lines.push(`Discount:   -${formatCurrency(sale.discount)}`);
+        if (sale.tax > 0)      lines.push(`Tax:        ${formatCurrency(sale.tax)}`);
+        lines.push(`TOTAL:      ${formatCurrency(sale.total)}`);
+
+        if (sale.payment_method === 'Credit') {
+            lines.push(sep);
+            lines.push(`CREDIT SALE`);
+            lines.push(`  Paid Now:   ${formatCurrency(sale.paid_amount || 0)}`);
+            lines.push(`  Balance:    ${formatCurrency(Math.max(0, sale.total - (sale.paid_amount || 0)))}`);
+            if (sale.due_date) lines.push(`  Due By:     ${new Date(sale.due_date).toLocaleDateString('en-KE')}`);
+        }
+        lines.push(sep);
+        lines.push(`Payment:    ${sale.payment_method}`);
+        lines.push('');
+        lines.push(footer);
+
+        lastReceiptText = lines.join('\n');
+        document.getElementById('receiptContent').textContent = lastReceiptText;
+        openModal('receiptModal');
+    }
+
+    function printReceipt() {
+        if (!lastReceiptText) return;
+        const w = window.open('', '_blank', 'width=420,height=640');
+        if (!w) { showToast('Popup blocked — allow popups to print', 'error'); return; }
+        w.document.write(`<!doctype html><html><head><title>Receipt</title>
+            <style>body{font-family:'Courier New',monospace;font-size:13px;padding:16px;white-space:pre-wrap;word-break:break-all;}</style>
+            </head><body>${escapeHtml(lastReceiptText)}</body></html>`);
+        w.document.close();
+        w.focus();
+        w.onafterprint = () => w.close();
+        setTimeout(() => w.print(), 200);
+    }
+
+    function downloadReceipt() {
+        if (!lastReceiptText) return;
+        const blob = new Blob([lastReceiptText], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const match = lastReceiptText.match(/Receipt #:\s+(\S+)/);
+        a.download = `FarmersChoice_${match ? match[1] : 'receipt'}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        showToast('Receipt downloaded', 'info');
+    }
+
+    // ============================================
+    // INIT
+    // ============================================
+    async function init() {
+        if (!requireAuth()) return;
+        await refreshCurrentUser();
+
+        if (window.CONFIG?.APP?.NAME) {
+            const t = document.getElementById('appTitle');
+            if (t) t.textContent = CONFIG.APP.NAME;
+        }
+
+        // Nav gating
+        document.getElementById('tabAll').style.display       = hasPerm('sales.view_all')  ? '' : 'none';
+        document.getElementById('tabCredits').style.display   = hasPerm('sales.view_all')  ? '' : 'none';
+        document.getElementById('tabReports').style.display   = hasPerm('reports.view')    ? '' : 'none';
+        document.getElementById('tabLive').style.display      = hasPerm('live.view')       ? '' : 'none';
+        document.getElementById('tabAnalytics').style.display = hasPerm('analytics.view')  ? '' : 'none';
+        document.getElementById('tabUsers').style.display     = hasPerm('users.view')      ? '' : 'none';
+
+        updateUserChip();
+        renderCart();
+        loadProducts();
+
+        console.log('✅ POS page ready');
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

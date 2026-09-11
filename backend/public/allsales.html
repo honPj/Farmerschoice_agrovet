@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FarmersChoice Agrovet — All Sales</title>
+    <link rel="icon" type="image/png" href="assets/OIP.webp">
+    <link rel="stylesheet" href="css/shared.css">
+    <style>
+        .mono { font-family: var(--font-mono); }
+
+        .loading-spinner {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 30px;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+        .loading-spinner::before {
+            content: '';
+            width: 24px;
+            height: 24px;
+            border: 3px solid var(--border-color);
+            border-top: 3px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 12px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .error-banner {
+            background: rgba(220, 38, 38, 0.1);
+            border: 1px solid rgba(220, 38, 38, 0.4);
+            color: #f87171;
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .empty-state {
+            padding: 32px 16px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .filters-bar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+            align-items: center;
+        }
+        .filters-bar .search-input { flex: 1; min-width: 200px; }
+        .filters-bar select,
+        .filters-bar input[type="date"] {
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: var(--radius-sm);
+            padding: 8px 12px;
+            font-size: 14px;
+            min-width: 150px;
+            outline: none;
+        }
+
+        .receipt {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-word;
+            background: var(--bg-primary);
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            max-height: 460px;
+            overflow-y: auto;
+        }
+
+        .sale-row { cursor: pointer; }
+        .sale-row:hover { background: rgba(46, 125, 50, 0.06); }
+
+        /* Payment breakdown chips */
+        .breakdown-grid {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+        .breakdown-chip {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 8px 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+        }
+        .breakdown-chip .bd-label {
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .breakdown-chip .bd-value {
+            color: var(--green);
+            font-family: var(--font-mono);
+            font-weight: 600;
+        }
+        .breakdown-chip .bd-count {
+            color: var(--text-muted);
+            font-size: 11px;
+            font-family: var(--font-mono);
+        }
+
+        /* Grand total footer row */
+        tfoot td {
+            background: var(--bg-surface);
+            font-weight: 600;
+            border-top: 2px solid var(--accent);
+            font-family: var(--font-mono);
+            padding: 12px;
+        }
+        tfoot td.grand-total-value { color: var(--green); }
+
+        /* Per-cashier grouping header rows */
+        .group-header td {
+            background: var(--bg-surface);
+            font-weight: 600;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            padding: 10px 12px;
+            border-top: 2px solid var(--border-color);
+            color: var(--accent);
+        }
+        .group-subtotal td {
+            background: rgba(46, 125, 50, 0.04);
+            font-family: var(--font-mono);
+            font-size: 12px;
+            padding: 8px 12px;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- HEADER -->
+    <header>
+        <div class="header-left">
+            <div class="header-logo">FC</div>
+            <div>
+                <div class="header-title" id="appTitle">FarmersChoice Agrovet</div>
+                <div class="header-sub" id="headerClock"></div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="theme-toggle-wrapper" onclick="toggleTheme()" role="button" tabindex="0">
+                <span class="toggle-icon" id="themeIcon">🌙</span>
+                <div class="theme-toggle-switch"><div class="toggle-slider"></div></div>
+            </div>
+            <div class="user-chip" id="userChip">
+                <div class="avatar" id="userAvatar">🧑‍💼</div>
+                <span id="userName">User</span>
+                <span style="color:var(--text-muted);font-size:11px;font-family:var(--font-mono);" id="userRole">EMPLOYEE</span>
+            </div>
+            <button class="btn-ghost btn-sm" onclick="handleLogout()">Logout</button>
+        </div>
+    </header>
+
+    <!-- NAVIGATION -->
+            <div class="navbar" id="navbar">
+        <a href="pos.html" class="nav-tab">Sell</a>
+        <a href="stock.html" class="nav-tab">Stock</a>
+        <a href="mysales.html" class="nav-tab">My Sales</a>
+        <a href="allsales.html" class="nav-tab active" id="tabAll">All Sales</a>
+         <a href="credits.html" class="nav-tab " id="tabCredits" style="display:none;">Credits</a>
+        <a href="users.html" class="nav-tab" id="tabUsers" style="display:none;">Users</a>
+        <a href="reports.html" class="nav-tab" id="tabReports" style="display:none;">Reports</a>
+        <a href="live.html" class="nav-tab" id="tabLive" style="display:none;">Live</a>
+        <a href="analytics.html" class="nav-tab" id="tabAnalytics" style="display:none;">Analytics</a>
+    </div>
+
+    <!-- PAGE -->
+    <div class="page">
+        <div class="page-header">
+            <div class="page-title">All Sales <span id="pageRange" style="color:var(--text-muted);font-size:14px;font-weight:400;margin-left:8px;"></span></div>
+            <div style="display:flex;gap:8px;">
+                <button class="btn-ghost btn-sm" onclick="loadAllSales()" title="Refresh">🔄 Refresh</button>
+                <button class="btn-ghost btn-sm" onclick="exportCSV()" title="Export current view to CSV">⬇️ Export CSV</button>
+            </div>
+        </div>
+
+        <div id="errorArea"></div>
+
+        <!-- Filter bar -->
+        <div class="filters-bar">
+            <select id="datePreset" aria-label="Date range" title="Date range" onchange="onDatePresetChange()">
+                <option value="today">Today</option>
+                <option value="yesterday">Yesterday</option>
+                <option value="last7" selected>Last 7 days</option>
+                <option value="last30">Last 30 days</option>
+                <option value="custom">Custom range</option>
+            </select>
+            <input type="date" id="dateFrom" style="display:none;" onchange="onCustomDateChange()" aria-label="Start date" title="Start date" />
+            <input type="date" id="dateTo"   style="display:none;" onchange="onCustomDateChange()" aria-label="End date" title="End date" />
+
+            <select id="filterUser" title="Filter by staff member" onchange="renderAllSales()">
+                <option value="">All Staff</option>
+            </select>
+            <select id="filterPayment" title="Filter by payment method" aria-label="Filter by payment method" onchange="renderAllSales()">
+                <option value="">All Payments</option>
+                <option>Cash</option>
+                <option>M-Pesa</option>
+                <option>Bank</option>
+                <option>Credit</option>
+            </select>
+
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-secondary);margin-left:auto;cursor:pointer;">
+                <input type="checkbox" id="groupByCashier" onchange="renderAllSales()" />
+                Group by cashier
+            </label>
+        </div>
+
+        <!-- Payment breakdown -->
+        <div class="breakdown-grid" id="paymentBreakdown"></div>
+
+        <!-- Stats -->
+        <div class="stats-grid" id="allStats"></div>
+
+        <!-- Table -->
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Receipt</th>
+                        <th>Time</th>
+                        <th>Staff</th>
+                        <th>Customer</th>
+                        <th>Items</th>
+                        <th>Total</th>
+                        <th>Payment</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="allSalesBody">
+                    <tr><td colspan="8" style="text-align:center;padding:30px;">
+                        <div class="loading-spinner">Loading sales...</div>
+                    </td></tr>
+                </tbody>
+                <tfoot id="allSalesFoot"></tfoot>
+            </table>
+        </div>
+    </div>
+
+    <!-- RECEIPT MODAL -->
+    <div class="overlay" id="receiptModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Receipt</h3>
+                <button class="btn-ghost btn-sm" onclick="closeModal('receiptModal')">Close</button>
+            </div>
+            <div class="modal-body">
+                <div class="receipt" id="receiptContent"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-ghost btn-sm" onclick="printReceipt()">🖨️ Print</button>
+                <button class="btn-ghost btn-sm" onclick="downloadReceipt()">⬇️ Download</button>
+                <button class="btn-primary-solid btn-sm" onclick="closeModal('receiptModal')">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- SCRIPTS -->
+    <script src="js/config.js"></script>
+    <script src="js/env.js"></script>
+    <script src="js/shared.js"></script>
+
+    <script>
+    // ============================================
+    // STATE
+    // ============================================
+    let sales = [];
+    let lastReceiptText = '';
+
+    // ============================================
+    // HELPERS
+    // ============================================
+    function escapeHtml(s) {
+        return String(s ?? '').replace(/[&<>"']/g, c => ({
+            '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+        }[c]));
+    }
+
+    function fmtTime(iso) {
+        if (!iso) return '—';
+        return new Date(iso).toLocaleString('en-KE', { dateStyle: 'short', timeStyle: 'short' });
+    }
+
+    function startOfToday() {
+        const d = new Date();
+        d.setHours(0, 0, 0, 0);
+        return d;
+    }
+
+    function addDays(date, days) {
+        const d = new Date(date);
+        d.setDate(d.getDate() + days);
+        return d;
+    }
+
+    function toISODate(d) {
+        // Returns YYYY-MM-DD in local time
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    }
+
+    // ============================================
+    // DATE RANGE
+    // ============================================
+    function onDatePresetChange() {
+        const preset = document.getElementById('datePreset').value;
+        const fromEl = document.getElementById('dateFrom');
+        const toEl = document.getElementById('dateTo');
+
+        if (preset === 'custom') {
+            fromEl.style.display = '';
+            toEl.style.display = '';
+            // Default to last 7 days if empty
+            if (!fromEl.value) fromEl.value = toISODate(addDays(startOfToday(), -6));
+            if (!toEl.value)   toEl.value   = toISODate(startOfToday());
+            // Don't auto-fetch — wait for user to confirm dates
+            return;
+        }
+
+        fromEl.style.display = 'none';
+        toEl.style.display = 'none';
+
+        const today = startOfToday();
+        let from, to = today;
+
+        switch (preset) {
+            case 'today':     from = today; break;
+            case 'yesterday': from = addDays(today, -1); to = addDays(today, -1); break;
+            case 'last7':     from = addDays(today, -6); break;
+            case 'last30':    from = addDays(today, -29); break;
+            default:          from = addDays(today, -6);
+        }
+
+        loadAllSales(from, to);
+    }
+
+    function onCustomDateChange() {
+        const from = document.getElementById('dateFrom').value;
+        const to   = document.getElementById('dateTo').value;
+        if (!from || !to) return;
+        if (new Date(from) > new Date(to)) {
+            showToast('Start date must be before end date', 'error');
+            return;
+        }
+        loadAllSales(new Date(from + 'T00:00:00'), new Date(to + 'T23:59:59'));
+    }
+
+    // ============================================
+    // LOAD
+    // ============================================
+    async function loadAllSales(fromDate, toDate) {
+        const tbody = document.getElementById('allSalesBody');
+        const errorArea = document.getElementById('errorArea');
+        errorArea.innerHTML = '';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;"><div class="loading-spinner">Loading sales...</div></td></tr>';
+        document.getElementById('allSalesFoot').innerHTML = '';
+
+        try {
+            const filters = { limit: 1000 };
+            if (fromDate) filters.start_date = fromDate.toISOString();
+            if (toDate)   filters.end_date   = toDate.toISOString();
+
+            const data = await fetchSales(filters);
+            sales = Array.isArray(data) ? data : [];
+
+            // Update page header label
+            updateRangeLabel(fromDate, toDate);
+
+            // Populate staff filter dropdown from sales data
+            populateStaffFilter();
+
+            renderAllSales();
+        } catch (err) {
+            console.error('loadAllSales failed:', err);
+            tbody.innerHTML = '';
+            errorArea.innerHTML = `
+                <div class="error-banner">
+                    <div>
+                        <strong>Could not load sales.</strong><br>
+                        <span style="font-size:13px;">${escapeHtml(err.message || 'Unknown error')}</span>
+                    </div>
+                    <button class="btn-ghost btn-sm" onclick="onDatePresetChange()">Retry</button>
+                </div>`;
+            showToast('Failed to load sales', 'error');
+        }
+    }
+
+    function updateRangeLabel(fromDate, toDate) {
+        const label = document.getElementById('pageRange');
+        if (!fromDate || !toDate) { label.textContent = ''; return; }
+        const f = fromDate.toLocaleDateString('en-KE', { day: 'numeric', month: 'short' });
+        const t = toDate.toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' });
+        label.textContent = `— ${f} → ${t}`;
+    }
+
+    function populateStaffFilter() {
+        const sel = document.getElementById('filterUser');
+        const currentVal = sel.value;
+
+        // Derive unique users from sales data
+        const map = new Map();
+        for (const s of sales) {
+            const id = s.user_id || s.user?.id;
+            const name = s.user?.full_name || s.user_name || 'Unknown';
+            const role = s.user?.role || 'employee';
+            if (id && !map.has(id)) map.set(id, { id, name, role });
+        }
+
+        const unique = [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
+
+        sel.innerHTML = '<option value="">All Staff</option>' +
+            unique.map(u => `<option value="${u.id}">${escapeHtml(u.name)}</option>`).join('');
+
+        // Restore selection if still valid
+        if (currentVal && unique.some(u => u.id === currentVal)) {
+            sel.value = currentVal;
+        }
+    }
+
+    // ============================================
+    // RENDER
+    // ============================================
+    function getFilteredSales() {
+        const userFilter    = document.getElementById('filterUser').value;
+        const paymentFilter = document.getElementById('filterPayment').value;
+
+        let list = sales.slice();
+        if (userFilter)    list = list.filter(s => (s.user_id || s.user?.id) === userFilter);
+        if (paymentFilter) list = list.filter(s => s.payment_method === paymentFilter);
+
+        // Newest first
+        list.sort((a, b) => new Date(b.sale_date || b.created_at) - new Date(a.sale_date || a.created_at));
+        return list;
+    }
+
+    function renderAllSales() {
+        const list = getFilteredSales();
+        renderStats(list);
+        renderPaymentBreakdown(list);
+        renderRows(list);
+        renderFooter(list);
+    }
+
+    function renderStats(list) {
+        const total = list.reduce((s, x) => s + (Number(x.total) || 0), 0);
+        const items = list.reduce((s, x) => s + (x.sale_items ? x.sale_items.length : 0), 0);
+        const avg = list.length ? total / list.length : 0;
+        const uniqueCashiers = new Set(list.map(s => s.user_id || s.user?.id).filter(Boolean)).size;
+
+        document.getElementById('allStats').innerHTML = createStats([
+            ['Transactions', list.length, 'var(--accent)'],
+            ['Total Revenue', formatCurrency(total), 'var(--green)'],
+            ['Items Sold', items, 'var(--accent)'],
+            ['Avg Sale', formatCurrency(avg), 'var(--text)'],
+            ['Active Cashiers', uniqueCashiers, 'var(--text)']
+        ]);
+    }
+
+    function renderPaymentBreakdown(list) {
+        const wrap = document.getElementById('paymentBreakdown');
+        if (!list.length) { wrap.innerHTML = ''; return; }
+
+        const totals = {};
+        for (const s of list) {
+            const pm = s.payment_method || 'Unknown';
+            if (!totals[pm]) totals[pm] = { total: 0, count: 0 };
+            totals[pm].total += Number(s.total) || 0;
+            totals[pm].count += 1;
+        }
+
+        const order = ['Cash', 'M-Pesa', 'Bank', 'Credit'];
+        const keys = Object.keys(totals).sort((a, b) => {
+            const ai = order.indexOf(a), bi = order.indexOf(b);
+            if (ai === -1 && bi === -1) return a.localeCompare(b);
+            if (ai === -1) return 1;
+            if (bi === -1) return -1;
+            return ai - bi;
+        });
+
+        wrap.innerHTML = keys.map(k => `
+            <div class="breakdown-chip">
+                <span class="bd-label">${escapeHtml(k)}</span>
+                <span class="bd-value">${formatCurrency(totals[k].total)}</span>
+                <span class="bd-count">×${totals[k].count}</span>
+            </div>
+        `).join('');
+    }
+
+    function renderRows(list) {
+        const tbody = document.getElementById('allSalesBody');
+
+        if (!sales.length) {
+            tbody.innerHTML = `<tr><td colspan="8" class="empty-state">No sales in this range.</td></tr>`;
+            return;
+        }
+        if (!list.length) {
+            tbody.innerHTML = `<tr><td colspan="8" class="empty-state">No sales match your filters.</td></tr>`;
+            return;
+        }
+
+        const groupBy = document.getElementById('groupByCashier').checked;
+
+        if (groupBy) {
+            tbody.innerHTML = renderGrouped(list);
+        } else {
+            tbody.innerHTML = list.map(s => rowHtml(s)).join('');
+        }
+    }
+
+    function rowHtml(s) {
+        const itemCount = s.sale_items ? s.sale_items.length : 0;
+        const cashierName = s.user?.full_name || s.user_name || 'Unknown';
+        const role = s.user?.role || 'employee';
+        return `
+            <tr class="sale-row" onclick="openSale('${s.id}')">
+                <td class="mono" style="font-size:12px;">${escapeHtml(s.receipt_number || '—')}</td>
+                <td style="font-size:12px;">${fmtTime(s.sale_date || s.created_at)}</td>
+                <td><span class="pill ${getRolePillClass(role)}">${escapeHtml(cashierName)}</span></td>
+                <td>${escapeHtml(s.customer_name || 'Walk-in')}</td>
+                <td class="mono">${itemCount}</td>
+                <td class="mono" style="color:var(--green);">${formatCurrency(s.total)}</td>
+                <td><span class="pill ${getPaymentPillClass(s.payment_method)}">${escapeHtml(s.payment_method || '—')}</span></td>
+                <td><button class="btn-ghost btn-sm" onclick="event.stopPropagation();openSale('${s.id}')">View</button></td>
+            </tr>`;
+    }
+
+    function renderGrouped(list) {
+        // Group by cashier
+        const groups = new Map();
+        for (const s of list) {
+            const id = s.user_id || s.user?.id || '__unknown__';
+            const name = s.user?.full_name || s.user_name || 'Unknown';
+            if (!groups.has(id)) groups.set(id, { name, sales: [] });
+            groups.get(id).sales.push(s);
+        }
+
+        const html = [];
+        for (const [id, { name, sales: groupSales }] of groups) {
+            const groupTotal = groupSales.reduce((a, s) => a + (Number(s.total) || 0), 0);
+            html.push(`
+                <tr class="group-header">
+                    <td colspan="8">
+                        👤 ${escapeHtml(name)} — ${groupSales.length} sale${groupSales.length === 1 ? '' : 's'}
+                    </td>
+                </tr>`);
+            html.push(groupSales.map(s => rowHtml(s)).join(''));
+            html.push(`
+                <tr class="group-subtotal">
+                    <td colspan="5" style="text-align:right;">Subtotal for ${escapeHtml(name)}:</td>
+                    <td class="mono" style="color:var(--green);">${formatCurrency(groupTotal)}</td>
+                    <td colspan="2"></td>
+                </tr>`);
+        }
+        return html.join('');
+    }
+
+    function renderFooter(list) {
+        const foot = document.getElementById('allSalesFoot');
+
+        if (!list.length) { foot.innerHTML = ''; return; }
+
+        const total    = list.reduce((s, x) => s + (Number(x.total) || 0), 0);
+        const items    = list.reduce((s, x) => s + (x.sale_items ? x.sale_items.length : 0), 0);
+
+        foot.innerHTML = `
+            <tr>
+                <td colspan="4" style="text-align:right;">GRAND TOTAL (${list.length} transactions)</td>
+                <td class="mono">${items}</td>
+                <td class="mono grand-total-value">${formatCurrency(total)}</td>
+                <td colspan="2"></td>
+            </tr>`;
+    }
+
+    // ============================================
+    // OPEN SALE → detail
+    // ============================================
+    async function openSale(saleId) {
+        const cached = sales.find(s => s.id === saleId);
+        if (cached && Array.isArray(cached.sale_items) && cached.sale_items.length) {
+            showReceipt(cached);
+            return;
+        }
+        try {
+            const response = await apiRequest(`/sales/${saleId}`);
+            showReceipt(response.data);
+        } catch (err) {
+            console.error('openSale failed:', err);
+            showToast('Could not load sale: ' + err.message, 'error');
+        }
+    }
+
+    // ============================================
+    // RECEIPT
+    // ============================================
+    function showReceipt(sale) {
+        const cfg = window.CONFIG?.RECEIPT || {};
+        const header = cfg.HEADER || 'FarmersChoice Agrovet';
+        const sub = cfg.SUBHEADER || 'Nairobi, Kenya';
+        const footer = cfg.FOOTER || 'Thank you for your business!';
+        const sep = '─'.repeat(42);
+
+        const dt = new Date(sale.sale_date || sale.created_at).toLocaleString('en-KE', {
+            dateStyle: 'medium', timeStyle: 'short'
+        });
+
+        const cashierName = sale.user?.full_name || sale.user_name || 'User';
+        const items = sale.sale_items || [];
+
+        const lines = [];
+        lines.push(header);
+        lines.push(sub);
+        lines.push(sep);
+        lines.push(`Receipt #:  ${sale.receipt_number || '—'}`);
+        lines.push(`Date:       ${dt}`);
+        lines.push(`Cashier:    ${cashierName}`);
+        lines.push(`Customer:   ${sale.customer_name || 'Walk-in'}`);
+        lines.push(sep);
+
+        if (items.length) {
+            for (const it of items) {
+                lines.push(it.product_name || 'Item');
+                lines.push(`  ${it.quantity} × ${formatCurrency(it.unit_price)} = ${formatCurrency(it.total_price)}`);
+            }
+        } else {
+            lines.push('(No item details available)');
+        }
+
+        lines.push(sep);
+        lines.push(`Subtotal:   ${formatCurrency(sale.subtotal || sale.total || 0)}`);
+        if (sale.discount) lines.push(`Discount:   -${formatCurrency(sale.discount)}`);
+        if (sale.tax)      lines.push(`Tax:        ${formatCurrency(sale.tax)}`);
+        lines.push(`TOTAL:      ${formatCurrency(sale.total || 0)}`);
+        lines.push(sep);
+        lines.push(`Payment:    ${sale.payment_method || '—'}`);
+        lines.push('');
+        lines.push(footer);
+
+        lastReceiptText = lines.join('\n');
+        document.getElementById('receiptContent').textContent = lastReceiptText;
+        openModal('receiptModal');
+    }
+
+    function printReceipt() {
+        if (!lastReceiptText) return;
+        const w = window.open('', '_blank', 'width=420,height=640');
+        if (!w) { showToast('Popup blocked — allow popups to print', 'error'); return; }
+        w.document.write(`<!doctype html><html><head><title>Receipt</title>
+            <style>body{font-family:'Courier New',monospace;font-size:13px;padding:16px;white-space:pre-wrap;word-break:break-all;}</style>
+            </head><body>${escapeHtml(lastReceiptText)}</body></html>`);
+        w.document.close();
+        w.focus();
+        w.onafterprint = () => w.close();
+        setTimeout(() => w.print(), 200);
+    }
+
+    function downloadReceipt() {
+        if (!lastReceiptText) return;
+        const blob = new Blob([lastReceiptText], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const m = lastReceiptText.match(/Receipt #:\s+(\S+)/);
+        a.download = `FarmersChoice_${m ? m[1] : 'receipt'}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        showToast('Receipt downloaded', 'info');
+    }
+
+    // ============================================
+    // EXPORT CSV (current filtered view)
+    // ============================================
+    function exportCSV() {
+        const list = getFilteredSales();
+        if (!list.length) {
+            showToast('Nothing to export', 'warning');
+            return;
+        }
+
+        const headers = ['Receipt', 'Date', 'Cashier', 'Role', 'Customer', 'Items', 'Total', 'Payment'];
+        const rows = list.map(s => [
+            s.receipt_number || '',
+            new Date(s.sale_date || s.created_at).toLocaleString('en-KE'),
+            s.user?.full_name || s.user_name || 'Unknown',
+            s.user?.role || 'employee',
+            s.customer_name || 'Walk-in',
+            s.sale_items ? s.sale_items.length : 0,
+            s.total || 0,
+            s.payment_method || ''
+        ]);
+
+        const csv = [headers, ...rows]
+            .map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))
+            .join('\n');
+
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const preset = document.getElementById('datePreset').value;
+        a.download = `FarmersChoice_AllSales_${preset}_${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        showToast('CSV exported', 'info');
+    }
+
+    // ============================================
+    // INIT
+    // ============================================
+    function init() {
+        if (!requireAuth()) return;
+
+        // Manager+ only
+        if (!isManagerOrOwner()) {
+            showToast('Access denied — managers only', 'error');
+            setTimeout(() => window.location.href = 'pos.html', 800);
+            return;
+        }
+
+        if (window.CONFIG?.APP?.NAME) {
+            const t = document.getElementById('appTitle');
+            if (t) t.textContent = CONFIG.APP.NAME;
+        }
+
+        // Show manager tabs
+        document.getElementById('tabReports').style.display   = '';
+        document.getElementById('tabLive').style.display      = '';
+        document.getElementById('tabAnalytics').style.display = '';
+
+        updateUserChip();
+
+        // Initial load — Last 7 days
+        onDatePresetChange();
+
+        console.log('✅ All Sales page ready');
+    }    async function init() {
+        if (!requireAuth()) return;
+
+        // Refresh permissions from backend
+        await refreshCurrentUser();
+
+        // Gate: need sales.view_all
+        if (!hasPerm('sales.view_all')) {
+            showToast('Access denied — you do not have permission to view all sales', 'error');
+            setTimeout(() => window.location.href = 'pos.html', 800);
+            return;
+        }
+
+        if (window.CONFIG?.APP?.NAME) {
+            const t = document.getElementById('appTitle');
+            if (t) t.textContent = CONFIG.APP.NAME;
+        }
+
+        // Nav gating per permission
+        document.getElementById('tabAll').style.display       = hasPerm('sales.view_all')  ? '' : 'none';
+        document.getElementById('tabCredits').style.display   = hasPerm('sales.view_all')  ? '' : 'none';
+        document.getElementById('tabReports').style.display   = hasPerm('reports.view')    ? '' : 'none';
+        document.getElementById('tabLive').style.display      = hasPerm('live.view')       ? '' : 'none';
+        document.getElementById('tabAnalytics').style.display = hasPerm('analytics.view')  ? '' : 'none';
+        document.getElementById('tabUsers').style.display     = hasPerm('users.view')      ? '' : 'none';
+
+        updateUserChip();
+
+        // Initial load — Last 7 days
+        onDatePresetChange();
+
+        console.log('✅ All Sales page ready');
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

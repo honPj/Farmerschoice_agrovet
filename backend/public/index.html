@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FarmersChoice Agrovet — Login</title>
+    <link rel="icon" type="image/png" href="assets/OIP.webp">
+    
+    <!-- Shared CSS -->
+    <link rel="stylesheet" href="css/shared.css">
+    
+    <style>
+        /* ========================================== */
+        /* LOGIN PAGE SPECIFIC STYLES                */
+        /* ========================================== */
+        #loginScreen {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+            background: var(--bg-primary);
+            position: relative;
+        }
+
+        .login-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 40px 36px 32px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: var(--card-shadow);
+            transition: background 0.3s, border-color 0.3s;
+        }
+
+        .login-brand {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+
+        .login-brand .logo {
+            width: 60px;
+            height: 60px;
+            background: var(--accent);
+            border-radius: var(--radius);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-mono);
+            font-size: 24px;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 12px;
+        }
+
+        .login-brand h1 {
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            color: var(--text-primary);
+        }
+
+        .login-brand p {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            letter-spacing: 0.3px;
+            margin-top: 2px;
+        }
+
+        .login-divider {
+            margin: 20px 0 24px;
+            text-align: center;
+            border-top: 1px solid var(--border-color);
+            padding-top: 18px;
+            position: relative;
+        }
+
+        .login-divider span {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            background: var(--bg-secondary);
+            padding: 0 12px;
+            display: inline-block;
+            margin-top: -22px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-bottom: 14px;
+        }
+
+        .form-group label {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-group .input-field {
+            width: 100%;
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            color: var(--text-primary);
+            font-size: 15px;
+            font-family: var(--font-family);
+            outline: none;
+            transition: var(--transition);
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .form-group .input-field:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.25);
+        }
+
+        .form-group .input-field::placeholder {
+            color: var(--text-muted);
+            opacity: 0.6;
+        }
+
+        .auth-toggle {
+            background: none;
+            border: none;
+            color: var(--accent);
+            font-size: 13px;
+            cursor: pointer;
+            text-decoration: underline;
+            margin-top: 14px;
+            display: block;
+            width: 100%;
+            text-align: center;
+            font-family: var(--font-family);
+            transition: var(--transition);
+        }
+        .auth-toggle:hover { color: var(--text-primary); }
+
+        .forgot-password {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 12px;
+            cursor: pointer;
+            text-decoration: underline;
+            margin-top: 8px;
+            display: block;
+            width: 100%;
+            text-align: center;
+            font-family: var(--font-family);
+            transition: var(--transition);
+        }
+        .forgot-password:hover { color: var(--accent); }
+
+        .auth-error {
+            color: var(--red);
+            font-size: 13px;
+            margin-top: 10px;
+            text-align: center;
+        }
+        .auth-error.success { color: var(--green); }
+
+        #nameField { display: none; }
+        #nameField.visible { display: block; }
+
+        /* Loading state for button */
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ========================================== -->
+    <!-- LOGIN SCREEN                               -->
+    <!-- ========================================== -->
+    <div id="loginScreen">
+        <div class="login-card">
+            <div class="login-brand">
+                <div class="logo">FC</div>
+                <h1 id="appName">FarmersChoice Agrovet</h1>
+                <p id="appSubtitle">KENYA EDITION · SECURE · CLOUD SYNC</p>
+            </div>
+
+            <div class="login-divider">
+                <span id="authModeLabel">Sign In</span>
+            </div>
+
+            <div id="nameField" class="form-group">
+                <label for="loginName">Full Name</label>
+                <input type="text" id="loginName" class="input-field" placeholder="Enter your full name" autocomplete="off" />
+            </div>
+
+            <div class="form-group">
+                <label for="loginEmail">Email Address</label>
+                <input type="email" id="loginEmail" class="input-field" placeholder="Enter your email address" autocomplete="off" />
+            </div>
+
+            <div class="form-group">
+                <label for="loginPassword">Password</label>
+                <input type="password" id="loginPassword" class="input-field" placeholder="Enter your password" autocomplete="new-password" onkeydown="if(event.key==='Enter') handleLoginClick()" />
+            </div>
+
+            <button class="btn-primary" onclick="handleLoginClick()" id="loginBtn">Sign In</button>
+
+            <div id="authError" class="auth-error"></div>
+
+            <button class="auth-toggle" onclick="toggleAuthMode()" id="toggleAuthBtn">Don't have an account? Register</button>
+            <button class="forgot-password" onclick="handleForgotPassword()">Forgot Password?</button>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TOAST CONTAINER                            -->
+    <!-- ========================================== -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- ========================================== -->
+    <!-- CONFIGURATION                              -->
+    <!-- ========================================== -->
+    <script src="js/config.js"></script>
+    <script src="js/env.js"></script>
+
+    <!-- ========================================== -->
+    <!-- SHARED JS                                  -->
+    <!-- ========================================== -->
+    <script src="js/shared.js"></script>
+
+    <!-- ========================================== -->
+    <!-- LOGIN PAGE JS                              -->
+    <!-- ========================================== -->
+    <script>
+        let isSignUpMode = false;
+
+        /**
+         * Toggle between Login and Register modes
+         */
+        function toggleAuthMode() {
+            isSignUpMode = !isSignUpMode;
+            const btn = document.getElementById('toggleAuthBtn');
+            const loginBtn = document.getElementById('loginBtn');
+            const errorDiv = document.getElementById('authError');
+            const nameField = document.getElementById('nameField');
+            const modeLabel = document.getElementById('authModeLabel');
+            
+            errorDiv.textContent = '';
+            errorDiv.className = 'auth-error';
+
+            if (isSignUpMode) {
+                btn.textContent = 'Already have an account? Sign in';
+                loginBtn.textContent = 'Create Account';
+                nameField.classList.add('visible');
+                modeLabel.textContent = 'Create Account';
+            } else {
+                btn.textContent = "Don't have an account? Register";
+                loginBtn.textContent = 'Sign In';
+                nameField.classList.remove('visible');
+                modeLabel.textContent = 'Sign In';
+            }
+        }
+
+        /**
+         * Handle login or registration
+         */
+        async function handleLoginClick() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            const name = document.getElementById('loginName').value.trim();
+            const errorDiv = document.getElementById('authError');
+            const loginBtn = document.getElementById('loginBtn');
+
+            // Clear previous errors
+            errorDiv.textContent = '';
+            errorDiv.className = 'auth-error';
+
+            // Validate inputs
+            if (!email || !password) {
+                errorDiv.textContent = 'Please enter email and password.';
+                return;
+            }
+
+            if (isSignUpMode && !name) {
+                errorDiv.textContent = 'Please enter your full name.';
+                return;
+            }
+
+            // Validate email format
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                errorDiv.textContent = 'Please enter a valid email address.';
+                return;
+            }
+
+            // Validate password length
+            if (password.length < 6) {
+                errorDiv.textContent = 'Password must be at least 6 characters long.';
+                return;
+            }
+
+            // Show processing state
+            errorDiv.textContent = 'Processing...';
+            errorDiv.style.color = 'var(--text-muted)';
+            loginBtn.disabled = true;
+            loginBtn.textContent = isSignUpMode ? 'Creating Account...' : 'Signing In...';
+
+            try {
+                let result;
+                if (isSignUpMode) {
+                    // Register
+                    result = await handleRegister(email, password, name);
+                } else {
+                    // Login
+                    result = await handleLogin(email, password);
+                }
+                
+                if (result.success) {
+                    // Show welcome message
+                    const welcomeMsg = `Welcome${result.user.full_name ? ', ' + result.user.full_name : ''}!`;
+                    showToast(welcomeMsg, 'success');
+                    
+                    // Redirect to POS page
+                    setTimeout(() => {
+                        window.location.href = 'pos.html';
+                    }, 500);
+                } else {
+                    // Show error
+                    errorDiv.textContent = result.error || (isSignUpMode ? 'Registration failed' : 'Login failed');
+                    errorDiv.className = 'auth-error';
+                    loginBtn.disabled = false;
+                    loginBtn.textContent = isSignUpMode ? 'Create Account' : 'Sign In';
+                }
+            } catch (error) {
+                errorDiv.textContent = error.message || 'An error occurred. Please try again.';
+                errorDiv.className = 'auth-error';
+                loginBtn.disabled = false;
+                loginBtn.textContent = isSignUpMode ? 'Create Account' : 'Sign In';
+            }
+        }
+
+        /**
+         * Handle forgot password
+         */
+        async function handleForgotPassword() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const errorDiv = document.getElementById('authError');
+
+            if (!email) {
+                errorDiv.textContent = 'Please enter your email address first.';
+                errorDiv.className = 'auth-error';
+                return;
+            }
+
+            // Validate email format
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                errorDiv.textContent = 'Please enter a valid email address.';
+                errorDiv.className = 'auth-error';
+                return;
+            }
+
+            errorDiv.textContent = 'Sending reset link...';
+            errorDiv.style.color = 'var(--text-muted)';
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/reset-password`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    errorDiv.textContent = '✅ Password reset email sent! Check your inbox.';
+                    errorDiv.className = 'auth-error success';
+                    setTimeout(() => {
+                        errorDiv.className = 'auth-error';
+                        errorDiv.textContent = '';
+                    }, 5000);
+                } else {
+                    errorDiv.textContent = data.error?.message || 'Failed to send reset email. Please try again.';
+                    errorDiv.className = 'auth-error';
+                }
+            } catch (error) {
+                errorDiv.textContent = error.message || 'Network error. Please check your connection.';
+                errorDiv.className = 'auth-error';
+            }
+        }
+
+        /**
+         * Initialize page
+         */
+        function init() {
+            // Update app name from config if available
+            if (window.CONFIG && window.CONFIG.APP) {
+                document.getElementById('appName').textContent = CONFIG.APP.NAME;
+                document.getElementById('appSubtitle').textContent = 
+                    CONFIG.APP.COMPANY + ' · SECURE · CLOUD SYNC';
+            }
+
+            // Check if already logged in
+            if (isAuthenticated()) {
+                const user = getCurrentUser();
+                if (user) {
+                    showToast(`Welcome back, ${user.full_name || user.name || 'User'}!`, 'success');
+                }
+                // Redirect to POS page
+                window.location.href = 'pos.html';
+                return;
+            }
+
+            // Log environment info
+            if (window.ENV && ENV.isDevelopment()) {
+                console.log('🔧 Development mode');
+                console.log('🔗 API URL:', API_BASE);
+            }
+
+            console.log('✅ Login page initialized');
+            console.log('📍 URL:', window.location.href);
+            console.log('🔗 API_BASE:', API_BASE);
+        }
+
+        // Run init when DOM is ready
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

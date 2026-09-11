@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FarmersChoice Agrovet — Stock</title>
+    <link rel="icon" type="image/png" href="assets/OIP.webp">
+    <link rel="stylesheet" href="css/shared.css">
+    <style>
+        .loading-spinner {
+            display: flex; justify-content: center; align-items: center;
+            padding: 30px; color: var(--text-muted); font-size: 14px;
+        }
+        .loading-spinner::before {
+            content: '';
+            width: 24px; height: 24px;
+            border: 3px solid var(--border-color);
+            border-top: 3px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 12px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .btn-primary-solid:disabled, .btn-danger:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .error-banner {
+            background: rgba(220, 38, 38, 0.1);
+            border: 1px solid rgba(220, 38, 38, 0.4);
+            color: #f87171;
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            margin: 10px 0;
+            display: flex; justify-content: space-between; align-items: center;
+            gap: 12px;
+        }
+
+        .sku-cell { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
+        .cat-pill {
+            font-size: 11px; padding: 2px 8px;
+            border-radius: 12px; background: var(--bg-surface);
+            color: var(--text-muted); white-space: nowrap;
+        }
+
+        .filters-bar {
+            display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px;
+        }
+        .filters-bar .search-input { flex: 1; min-width: 220px; }
+        .filters-bar select {
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: var(--radius-sm);
+            padding: 8px 12px; font-size: 14px;
+            min-width: 180px; outline: none;
+        }
+
+        /* Action header labels */
+        .action-header {
+            display: block;
+            text-align: center;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            padding: 4px 8px;
+        }
+
+        /* ========================================== */
+        /* BULK IMPORT MODAL                          */
+        /* ========================================== */
+        #bulkImportModal .modal {
+            max-width: 1400px;
+            width: 97%;
+            max-height: 94vh;
+            display: flex;
+            flex-direction: column;
+            padding: 0;
+        }
+        #bulkImportModal .modal-body {
+            padding: 0;
+            overflow: hidden;
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .bulk-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 18px;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--bg-surface);
+            flex-wrap: wrap;
+        }
+        .bulk-toolbar .bulk-hint {
+            margin-left: auto;
+            font-size: 11px;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+
+        .bulk-table-wrap {
+            flex: 1;
+            overflow: auto;
+            padding: 0;
+        }
+        table.bulk-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            min-width: 1200px;
+        }
+        table.bulk-table th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background: var(--bg-surface);
+            text-align: left;
+            padding: 8px 8px;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-color);
+            white-space: nowrap;
+        }
+        table.bulk-table td {
+            padding: 4px 6px;
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: middle;
+        }
+        table.bulk-table td input,
+        table.bulk-table td select {
+            width: 100%;
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 6px 8px;
+            color: var(--text-primary);
+            font-size: 12px;
+            outline: none;
+            font-family: var(--font-family);
+            min-width: 60px;
+        }
+        table.bulk-table td input:focus,
+        table.bulk-table td select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.15);
+        }
+        table.bulk-table td input[type="number"] {
+            font-family: var(--font-mono);
+            text-align: right;
+        }
+        table.bulk-table .col-name { min-width: 200px; }
+        table.bulk-table .col-cat { min-width: 160px; }
+        table.bulk-table .col-unit { min-width: 90px; }
+        table.bulk-table .col-cost { min-width: 90px; }
+        table.bulk-table .col-sell { min-width: 90px; }
+        table.bulk-table .col-margin { min-width: 130px; }
+        table.bulk-table .col-qty { min-width: 70px; }
+        table.bulk-table .col-sku { min-width: 140px; }
+        table.bulk-table .col-actions { width: 40px; text-align: center; }
+
+        .row-margin {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            padding: 6px 8px;
+            color: var(--text-muted);
+            text-align: right;
+        }
+        .row-margin.positive { color: var(--green); }
+        .row-margin.negative { color: var(--red); }
+
+        .row-remove {
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            width: 28px; height: 28px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .row-remove:hover {
+            color: var(--red);
+            border-color: rgba(220, 38, 38, 0.4);
+            background: rgba(220, 38, 38, 0.05);
+        }
+
+        .bulk-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 18px;
+            border-top: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .bulk-totals {
+            display: flex;
+            gap: 18px;
+            font-size: 12px;
+            font-family: var(--font-mono);
+            color: var(--text-muted);
+            flex-wrap: wrap;
+        }
+        .bulk-totals strong { color: var(--text-primary); }
+        .bulk-totals .val-green { color: var(--green); }
+
+        .new-cat-input {
+            background: var(--bg-primary) !important;
+            border: 1px dashed var(--accent) !important;
+            color: var(--accent) !important;
+            font-size: 12px !important;
+        }
+        .new-cat-cell {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .new-cat-actions {
+            display: flex;
+            gap: 4px;
+        }
+        .new-cat-actions button {
+            padding: 2px 8px;
+            font-size: 10px;
+            border-radius: 3px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-surface);
+            color: var(--text-muted);
+            cursor: pointer;
+            font-family: var(--font-family);
+        }
+        .new-cat-actions button.save {
+            color: var(--accent);
+            border-color: var(--accent);
+        }
+        .new-cat-actions button:hover {
+            background: var(--bg-card);
+        }
+
+        @media (max-width: 768px) {
+            #stockActionsCol { display: none !important; }
+            #bulkImportModal .modal { max-width: 100%; width: 100%; max-height: 100vh; border-radius: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- HEADER -->
+    <header>
+        <div class="header-left">
+            <div class="header-logo">FC</div>
+            <div>
+                <div class="header-title" id="appTitle">FarmersChoice Agrovet</div>
+                <div class="header-sub" id="headerClock"></div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="theme-toggle-wrapper" onclick="toggleTheme()" role="button" tabindex="0">
+                <span class="toggle-icon" id="themeIcon">🌙</span>
+                <div class="theme-toggle-switch"><div class="toggle-slider"></div></div>
+            </div>
+            <div class="user-chip" id="userChip">
+                <div class="avatar" id="userAvatar">🧑‍💼</div>
+                <span id="userName">User</span>
+                <span style="color:var(--text-muted);font-size:11px;font-family:var(--font-mono);" id="userRole">EMPLOYEE</span>
+            </div>
+            <button class="btn-ghost btn-sm" onclick="handleLogout()">Logout</button>
+        </div>
+    </header>
+
+    <!-- NAV -->
+    <div class="navbar" id="navbar">
+        <a href="pos.html" class="nav-tab">Sell</a>
+        <a href="stock.html" class="nav-tab active">Stock</a>
+        <a href="mysales.html" class="nav-tab">My Sales</a>
+        <a href="allsales.html" class="nav-tab" id="tabAll" style="display:none;">All Sales</a>
+         <a href="credits.html" class="nav-tab " id="tabCredits" style="display:none;">Credits</a>
+        <a href="users.html" class="nav-tab" id="tabUsers" style="display:none;">Users</a>
+        <a href="reports.html" class="nav-tab" id="tabReports" style="display:none;">Reports</a>
+        <a href="live.html" class="nav-tab" id="tabLive" style="display:none;">Live</a>
+        <a href="analytics.html" class="nav-tab" id="tabAnalytics" style="display:none;">Analytics</a>
+    </div>
+
+    <!-- PAGE -->
+    <div class="page">
+        <div class="page-header">
+            <div class="page-title">Stock Management</div>
+            <div id="stockButtons"></div>
+        </div>
+
+        <div class="filters-bar">
+            <input type="text" id="stockSearch" class="search-input" placeholder="Search by name or SKU..." oninput="renderStock()" />
+            <select id="categoryFilter" title="Filter by category" aria-label="Filter by category" onchange="renderStock()">
+                <option value="">All Categories</option>
+            </select>
+            <button class="btn-ghost btn-sm" onclick="loadProducts()" title="Refresh from server">🔄 Refresh</button>
+        </div>
+
+        <div id="errorArea"></div>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>SKU</th>
+                        <th>Product</th>
+                        <th>Category</th>
+                        <th>Unit</th>
+                        <th>Cost</th>
+                        <th>Sell</th>
+                        <th>Margin</th>
+                        <th>Stock</th>
+                        <th>Status</th>
+                        <th id="stockActionsCol" colspan="3" style="display:none;">
+                            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;">
+                                <span class="action-header">Restock</span>
+                                <span class="action-header">Edit</span>
+                                <span class="action-header">Delete</span>
+                            </div>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody id="stockBody">
+                    <tr>
+                        <td colspan="11" style="text-align:center; padding:30px;">
+                            <div class="loading-spinner">Loading products...</div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Product Modal -->
+    <div class="overlay" id="productModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="productModalTitle">Add Product</h3>
+                <button class="btn-ghost btn-sm" onclick="closeModal('productModal')">Close</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-grid">
+                    <div class="form-control full-width">
+                        <label for="productNameInput">Product Name *</label>
+                        <input type="text" id="productNameInput" placeholder="e.g., Maize Seed (1kg)" />
+                    </div>
+                    <div class="form-control">
+                        <label for="productSkuInput">SKU (optional)</label>
+                        <input type="text" id="productSkuInput" placeholder="Auto-generated if empty" />
+                    </div>
+                    <div class="form-control">
+                        <label for="productCategoryInput">Category</label>
+                        <select id="productCategoryInput">
+                            <option value="">— Uncategorized —</option>
+                        </select>
+                    </div>
+                    <div class="form-control">
+                        <label for="productUnitInput">Unit of Measure</label>
+                        <select id="productUnitInput"></select>
+                    </div>
+                    <div class="form-control">
+                        <label for="productBuyInput">Cost Price (KSh) *</label>
+                        <input type="number" id="productBuyInput" min="0" step="1" placeholder="0" />
+                    </div>
+                    <div class="form-control">
+                        <label for="productSellInput">Selling Price (KSh) *</label>
+                        <input type="number" id="productSellInput" min="0" step="1" placeholder="0" />
+                    </div>
+                    <div class="form-control full-width">
+                        <label for="productQuantityInput">Initial Stock *</label>
+                        <input type="number" id="productQuantityInput" min="0" step="1" placeholder="0" />
+                        <small style="color:var(--text-muted);font-size:11px;">For edits, this sets the total stock on the Main Branch.</small>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-ghost btn-sm" onclick="closeModal('productModal')">Cancel</button>
+                <button class="btn-primary-solid btn-sm" onclick="saveProduct()" id="saveProductBtn">Save Product</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Import Modal -->
+    <div class="overlay" id="bulkImportModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>📥 Bulk Import Stock</h3>
+                <button class="btn-ghost btn-sm" onclick="closeBulkImport()">Close</button>
+            </div>
+            <div class="modal-body">
+                <div class="bulk-toolbar">
+                    <button class="btn-ghost btn-sm" onclick="addBulkRow()">+ Add Row</button>
+                    <button class="btn-ghost btn-sm" onclick="clearBulkRows()">🧹 Clear All</button>
+                    <span class="bulk-hint" id="bulkRowCount">0 rows</span>
+                </div>
+                <div class="bulk-table-wrap">
+                    <table class="bulk-table">
+                        <thead>
+                            <tr>
+                                <th class="col-name">Name *</th>
+                                <th class="col-cat">Category</th>
+                                <th class="col-unit">Unit</th>
+                                <th class="col-cost">Cost (KSh) *</th>
+                                <th class="col-sell">Sell (KSh) *</th>
+                                <th class="col-margin">Margin</th>
+                                <th class="col-qty">Qty *</th>
+                                <th class="col-sku">SKU (auto)</th>
+                                <th class="col-actions"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="bulkTableBody"></tbody>
+                    </table>
+                </div>
+                <div class="bulk-footer">
+                    <div class="bulk-totals" id="bulkTotals">
+                        <span>Rows: <strong>0</strong></span>
+                        <span>Units: <strong>0</strong></span>
+                        <span>Cost: <strong class="val-green">KSh 0</strong></span>
+                        <span>Retail: <strong class="val-green">KSh 0</strong></span>
+                    </div>
+                    <div style="display:flex;gap:8px;">
+                        <button class="btn-ghost btn-sm" onclick="closeBulkImport()">Cancel</button>
+                        <button class="btn-primary-solid btn-sm" id="bulkSaveBtn" onclick="saveBulkImport()">Save All →</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Restock Modal -->
+    <div class="overlay" id="restockModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Restock <span id="restockProductName" style="color:var(--accent);"></span></h3>
+                <button class="btn-ghost btn-sm" onclick="closeModal('restockModal')">Close</button>
+            </div>
+            <div class="modal-body">
+                <div style="background:var(--bg-primary);border-radius:var(--radius-sm);padding:12px;margin-bottom:12px;font-family:var(--font-mono);font-size:14px;">
+                    <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                        <span>Current Stock:</span>
+                        <span style="color:var(--accent);" id="restockCurrent"></span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;">
+                        <span>Cost Price:</span>
+                        <span style="color:var(--accent);" id="restockCostPrice"></span>
+                    </div>
+                </div>
+                <div class="form-control">
+                    <label for="restockQty">Units to Add *</label>
+                    <input type="number" id="restockQty" min="1" step="1" placeholder="Enter quantity" />
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-ghost btn-sm" onclick="closeModal('restockModal')">Cancel</button>
+                <button class="btn-primary-solid btn-sm" onclick="confirmRestock()" id="restockBtn">Add Stock</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="js/config.js"></script>
+    <script src="js/env.js"></script>
+    <script src="js/shared.js"></script>
+
+    <script>
+    // ============================================
+    // STATE
+    // ============================================
+    let products = [];
+    let rawProducts = [];
+    let categories = [];
+    let editProductId = null;
+    let restockId = null;
+    let bulkRows = [];
+    let bulkRowSeq = 0;
+    const MAIN_BRANCH_ID = '22222222-2222-2222-2222-222222222222';
+    const MAX_BULK_ROWS = 40;
+
+    // ============================================
+    // HELPERS
+    // ============================================
+    function escapeHtml(s) {
+        return String(s ?? '').replace(/[&<>"']/g, c => ({
+            '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+        }[c]));
+    }
+
+    function mapProductFromBackend(p) {
+        const inv = Array.isArray(p.inventory) && p.inventory.length ? p.inventory[0] : null;
+        return {
+            id: p.id,
+            name: p.name,
+            sku: p.sku || '',
+            unit: p.unit_of_measure || 'piece',
+            category_id: p.category_id || '',
+            category_name: p.categories?.name || 'Uncategorized',
+            buy: inv?.cost_price ?? p.cost_price ?? 0,
+            sell: inv?.selling_price ?? p.selling_price ?? 0,
+            stock: p.total_stock ?? inv?.current_stock ?? p.quantity ?? 0,
+            minLevel: inv?.min_stock_level ?? 5,
+            is_active: p.is_active !== false,
+            _raw: p
+        };
+    }
+
+    // ============================================
+    // AUTO-SKU
+    // ============================================
+    function generateSku(name) {
+        if (!name || typeof name !== 'string') return '';
+        let working = name.trim().replace(/[()]/g, ' ');
+        const sizeRegex = /(\d+(?:\.\d+)?)\s*(ml|l|ltr|litre|kg|g|gm|mg|pcs|piece)\b/i;
+        const sizeMatch = working.match(sizeRegex);
+        let sizePart = '';
+        if (sizeMatch) {
+            sizePart = (sizeMatch[1] + sizeMatch[2]).toUpperCase().replace(/[^A-Z0-9]/g, '');
+            working = working.replace(sizeMatch[0], '').trim();
+        }
+        const words = working.split(/\s+/).filter(Boolean);
+        let prefix = '';
+        if (words.length >= 2) {
+            prefix = words.slice(0, 3).map(w => w.slice(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, '')).join('-');
+        } else if (words.length === 1) {
+            prefix = words[0].slice(0, 6).toUpperCase().replace(/[^A-Z0-9]/g, '');
+        } else {
+            prefix = 'PRD';
+        }
+        const suffix = Math.random().toString(36).slice(2, 6).toUpperCase();
+        const parts = [prefix];
+        if (sizePart) parts.push(sizePart);
+        parts.push(suffix);
+        return parts.join('-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    }
+
+    // ============================================
+    // RENDER STOCK TABLE
+    // ============================================
+    function renderStock() {
+        const query = (document.getElementById('stockSearch').value || '').trim().toLowerCase();
+        const catId = document.getElementById('categoryFilter').value;
+
+        const canManage = hasPerm('stock.manage');
+        const actionsCol = document.getElementById('stockActionsCol');
+        actionsCol.style.display = canManage ? '' : 'none';
+
+        document.getElementById('stockButtons').innerHTML = canManage
+            ? `<button class="btn-primary-solid btn-sm" onclick="openBulkImport()">📥 Bulk Import</button>
+               <button class="btn-primary-solid btn-sm" onclick="openProductModal(null)" style="margin-left:8px;">+ Add Product</button>`
+            : '';
+
+        let list = products;
+        if (catId) list = list.filter(p => p.category_id === catId);
+        if (query) {
+            list = list.filter(p =>
+                p.name.toLowerCase().includes(query) ||
+                (p.sku || '').toLowerCase().includes(query)
+            );
+        }
+
+        const tbody = document.getElementById('stockBody');
+
+        if (products.length === 0) {
+            tbody.innerHTML = `
+                <tr><td colspan="11" style="text-align:center; padding:30px; color:var(--text-muted);">
+                    No products found. ${canManage ? 'Click "Add Product" or "Bulk Import" to create products.' : ''}
+                </td></tr>`;
+            return;
+        }
+        if (list.length === 0) {
+            tbody.innerHTML = `
+                <tr><td colspan="11" style="text-align:center; padding:30px; color:var(--text-muted);">
+                    No products match your filters.
+                </td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = list.map(p => {
+            const status = p.stock <= 0 ? 'out' : p.stock <= p.minLevel ? 'low' : 'ok';
+            const statusClass = { ok: 'pill-green', low: 'pill-yellow', out: 'pill-red' }[status];
+            const statusText  = { ok: '✅ OK', low: '⚠️ Low', out: '❌ Out' }[status];
+            const margin = p.sell - p.buy;
+
+            return `<tr>
+                <td class="sku-cell">${escapeHtml(p.sku || '—')}</td>
+                <td><strong>${escapeHtml(p.name)}</strong></td>
+                <td><span class="cat-pill">${escapeHtml(p.category_name)}</span></td>
+                <td style="font-size:12px;color:var(--text-muted);">${escapeHtml(p.unit)}</td>
+                <td class="mono">${formatCurrency(p.buy)}</td>
+                <td class="mono">${formatCurrency(p.sell)}</td>
+                <td class="mono" style="color:${margin > 0 ? 'var(--green)' : 'var(--red)'};">${formatCurrency(margin)}</td>
+                <td class="mono"><strong>${p.stock}</strong></td>
+                <td><span class="pill ${statusClass}">${statusText}</span></td>
+                <td style="text-align:center;">${canManage ? `<button class="btn-ghost btn-sm" onclick="openRestock('${p.id}')" title="Restock">📦</button>` : '—'}</td>
+                <td style="text-align:center;">${canManage ? `<button class="btn-ghost btn-sm" onclick="openProductModal('${p.id}')" title="Edit">✏️</button>` : '—'}</td>
+                <td style="text-align:center;">${canManage ? `<button class="btn-danger btn-sm" onclick="removeProduct('${p.id}')" title="Delete">🗑️</button>` : '—'}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    // ============================================
+    // LOAD
+    // ============================================
+    async function loadProducts() {
+        const tbody = document.getElementById('stockBody');
+        const errorArea = document.getElementById('errorArea');
+        errorArea.innerHTML = '';
+        tbody.innerHTML = `
+            <tr><td colspan="11" style="text-align:center; padding:30px;">
+                <div class="loading-spinner">Loading products...</div>
+            </td></tr>`;
+
+        try {
+            const [prods, cats] = await Promise.all([fetchProducts(), fetchCategories()]);
+            rawProducts = prods;
+            products = prods.map(mapProductFromBackend);
+            categories = cats || [];
+
+            populateCategoryFilter();
+            populateCategorySelect();
+            renderStock();
+            showToast(`Loaded ${products.length} products`, 'success');
+        } catch (err) {
+            console.error('loadProducts failed:', err);
+            tbody.innerHTML = '';
+            errorArea.innerHTML = `
+                <div class="error-banner">
+                    <div>
+                        <strong>Could not load products.</strong><br>
+                        <span style="font-size:13px;">${escapeHtml(err.message || 'Unknown error')}</span>
+                    </div>
+                    <button class="btn-ghost btn-sm" onclick="loadProducts()">Retry</button>
+                </div>`;
+            showToast('Failed to load products', 'error');
+        }
+    }
+
+    function populateCategoryFilter() {
+        const sel = document.getElementById('categoryFilter');
+        const current = sel.value;
+        const sorted = [...categories].sort((a, b) => a.name.localeCompare(b.name));
+        sel.innerHTML = '<option value="">All Categories</option>' +
+            sorted.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+        sel.value = current || '';
+    }
+
+    function populateCategorySelect() {
+        const sel = document.getElementById('productCategoryInput');
+        const sorted = [...categories].sort((a, b) => a.name.localeCompare(b.name));
+        sel.innerHTML = '<option value="">— Uncategorized —</option>' +
+            sorted.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+    }
+
+    function populateUnitSelect() {
+        const sel = document.getElementById('productUnitInput');
+        const units = window.CONFIG?.UNITS || [{ value: 'piece', label: 'Piece' }];
+        sel.innerHTML = units.map(u => `<option value="${u.value}">${u.label}</option>`).join('');
+    }
+
+    // ============================================
+    // SINGLE ADD / EDIT
+    // ============================================
+    function openProductModal(productId) {
+        editProductId = productId || null;
+        populateUnitSelect();
+
+        if (productId) {
+            const p = products.find(x => x.id === productId);
+            if (!p) { showToast('Product not found', 'error'); return; }
+
+            document.getElementById('productModalTitle').textContent = 'Edit Product';
+            document.getElementById('productNameInput').value = p.name;
+            document.getElementById('productSkuInput').value = p.sku || '';
+            document.getElementById('productCategoryInput').value = p.category_id || '';
+            document.getElementById('productUnitInput').value = p.unit || 'piece';
+            document.getElementById('productBuyInput').value = p.buy;
+            document.getElementById('productSellInput').value = p.sell;
+            document.getElementById('productQuantityInput').value = p.stock;
+        } else {
+            document.getElementById('productModalTitle').textContent = 'Add New Product';
+            ['productNameInput','productSkuInput','productBuyInput','productSellInput','productQuantityInput']
+                .forEach(id => document.getElementById(id).value = '');
+            document.getElementById('productCategoryInput').value = '';
+            document.getElementById('productUnitInput').value = 'piece';
+        }
+        openModal('productModal');
+    }
+
+    async function saveProduct() {
+        const name     = document.getElementById('productNameInput').value.trim();
+        const sku      = document.getElementById('productSkuInput').value.trim();
+        const catId    = document.getElementById('productCategoryInput').value || null;
+        const unit     = document.getElementById('productUnitInput').value;
+        const buy      = parseFloat(document.getElementById('productBuyInput').value);
+        const sell     = parseFloat(document.getElementById('productSellInput').value);
+        const quantity = parseInt(document.getElementById('productQuantityInput').value, 10);
+
+        if (!name || name.length < 2) { showToast('Name must be at least 2 characters.', 'error'); return; }
+        if (isNaN(buy) || buy < 0)    { showToast('Cost price must be a non-negative number.', 'error'); return; }
+        if (isNaN(sell) || sell < 0)  { showToast('Selling price must be a non-negative number.', 'error'); return; }
+        if (isNaN(quantity) || quantity < 0) { showToast('Stock must be a non-negative integer.', 'error'); return; }
+        if (buy > sell)               { showToast('Selling price should be ≥ cost price.', 'warning'); }
+
+        const payload = {
+            name,
+            sku: sku || undefined,
+            category_id: catId || undefined,
+            unit_of_measure: unit,
+            cost_price: buy,
+            selling_price: sell,
+            quantity,
+            is_active: true
+        };
+
+        const btn = document.getElementById('saveProductBtn');
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+
+        try {
+            if (editProductId) {
+                await updateProduct(editProductId, payload);
+                showToast(window.CONFIG?.MESSAGES?.PRODUCT_UPDATED || 'Product updated!', 'success');
+            } else {
+                await createProduct(payload);
+                showToast(window.CONFIG?.MESSAGES?.PRODUCT_ADDED || 'Product added! Owner notified by email.', 'success');
+            }
+            closeModal('productModal');
+            await loadProducts();
+        } catch (err) {
+            console.error('saveProduct failed:', err);
+            showToast('Save failed: ' + err.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Save Product';
+        }
+    }
+
+    async function removeProduct(id) {
+        const p = products.find(x => x.id === id);
+        if (!p) return;
+        if (!confirm(`Delete "${p.name}"? This hides the product (soft delete).`)) return;
+        try {
+            await deleteProduct(id);
+            showToast(window.CONFIG?.MESSAGES?.PRODUCT_DELETED || 'Product deleted.', 'info');
+            await loadProducts();
+        } catch (err) {
+            console.error('removeProduct failed:', err);
+            showToast('Delete failed: ' + err.message, 'error');
+        }
+    }
+
+    // ============================================
+    // RESTOCK
+    // ============================================
+    function openRestock(id) {
+        const p = products.find(x => x.id === id);
+        if (!p) { showToast('Product not found', 'error'); return; }
+        restockId = id;
+        document.getElementById('restockProductName').textContent = p.name;
+        document.getElementById('restockCurrent').textContent = p.stock + ' ' + p.unit;
+        document.getElementById('restockCostPrice').textContent = formatCurrency(p.buy);
+        document.getElementById('restockQty').value = '';
+        openModal('restockModal');
+    }
+
+    async function confirmRestock() {
+        const qty = parseInt(document.getElementById('restockQty').value, 10);
+        if (isNaN(qty) || qty < 1) { showToast('Enter a whole number ≥ 1.', 'error'); return; }
+
+        const btn = document.getElementById('restockBtn');
+        btn.disabled = true;
+        btn.textContent = 'Adding...';
+        try {
+            await restockProduct(restockId, qty, MAIN_BRANCH_ID);
+            showToast(window.CONFIG?.MESSAGES?.RESTOCK_SUCCESS || 'Stock updated!', 'success');
+            closeModal('restockModal');
+            await loadProducts();
+        } catch (err) {
+            console.error('restock failed:', err);
+            showToast('Restock failed: ' + err.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Add Stock';
+        }
+    }
+
+    // ============================================
+    // BULK IMPORT
+    // ============================================
+    function openBulkImport() {
+        bulkRows = [];
+        bulkRowSeq = 0;
+        for (let i = 0; i < 3; i++) addBulkRow(false);
+        renderBulkTable();
+        updateBulkTotals();
+        openModal('bulkImportModal');
+    }
+
+    function closeBulkImport() {
+        const hasContent = bulkRows.some(r => r.name && r.name.trim());
+        if (hasContent && !confirm('Close bulk import? Any unsaved rows will be lost.')) return;
+        closeModal('bulkImportModal');
+        bulkRows = [];
+    }
+
+    function addBulkRow(shouldRender = true) {
+        if (bulkRows.length >= MAX_BULK_ROWS) {
+            showToast(`Maximum ${MAX_BULK_ROWS} rows per import`, 'warning');
+            return;
+        }
+        bulkRowSeq++;
+        bulkRows.push({
+            id: bulkRowSeq,
+            name: '',
+            category_id: '',
+            unit: 'piece',
+            cost: '',
+            sell: '',
+            qty: '',
+            sku: '',
+            sku_manual: false,
+            new_cat_name: ''
+        });
+        if (shouldRender) {
+            renderBulkTable();
+            updateBulkTotals();
+        }
+    }
+
+    function removeBulkRow(id) {
+        bulkRows = bulkRows.filter(r => r.id !== id);
+        if (bulkRows.length === 0) addBulkRow(false);
+        renderBulkTable();
+        updateBulkTotals();
+    }
+
+    function clearBulkRows() {
+        if (!confirm('Clear all rows?')) return;
+        bulkRows = [];
+        bulkRowSeq = 0;
+        for (let i = 0; i < 3; i++) addBulkRow(false);
+        renderBulkTable();
+        updateBulkTotals();
+    }
+
+    function updateBulkRow(id, field, value) {
+        const row = bulkRows.find(r => r.id === id);
+        if (!row) return;
+
+        row[field] = value;
+
+        if (field === 'name') {
+            if (!row.sku_manual) {
+                row.sku = generateSku(value);
+                const skuInput = document.querySelector(`input[data-bulk-sku="${id}"]`);
+                if (skuInput) skuInput.value = row.sku;
+            }
+        }
+        if (field === 'sku') {
+            row.sku_manual = true;
+        }
+
+        if (field === 'cost' || field === 'sell') {
+            updateBulkMarginDisplay(id);
+        }
+        updateBulkTotals();
+    }
+
+    function updateBulkMarginDisplay(id) {
+        const row = bulkRows.find(r => r.id === id);
+        if (!row) return;
+        const el = document.querySelector(`[data-bulk-margin="${id}"]`);
+        if (!el) return;
+
+        const cost = parseFloat(row.cost);
+        const sell = parseFloat(row.sell);
+        if (isNaN(cost) || isNaN(sell) || (cost === 0 && sell === 0)) {
+            el.textContent = '—';
+            el.className = 'row-margin';
+            return;
+        }
+        const margin = sell - cost;
+        const pct = cost > 0 ? ((margin / cost) * 100).toFixed(1) : '0.0';
+        el.textContent = `KSh ${margin.toLocaleString()} (${pct}%)`;
+        el.className = 'row-margin ' + (margin >= 0 ? 'positive' : 'negative');
+    }
+
+    // Category dropdown: existing + any pending "new:" categories + "New category…"
+    function getCategoryOptionsForRow(row) {
+        const currentValue = row.category_id || '';
+        const opts = ['<option value="">— Uncategorized —</option>'];
+
+        const sorted = [...categories].sort((a, b) => a.name.localeCompare(b.name));
+        const catalogLower = new Set(sorted.map(c => c.name.toLowerCase()));
+
+        for (const c of sorted) {
+            const sel = currentValue === c.id ? 'selected' : '';
+            opts.push(`<option value="${c.id}" ${sel}>${escapeHtml(c.name)}</option>`);
+        }
+
+        // Show any "new:" categories currently pending across all rows
+        const pending = new Set();
+        bulkRows.forEach(r => {
+            if (r.category_id && String(r.category_id).startsWith('new:')) {
+                const nm = String(r.category_id).slice(4).trim();
+                if (nm) pending.add(nm);
+            }
+        });
+        for (const nm of [...pending].sort()) {
+            if (catalogLower.has(nm.toLowerCase())) continue;
+            const val = `new:${nm}`;
+            const sel = currentValue === val ? 'selected' : '';
+            opts.push(`<option value="${val}" ${sel}>➕ ${escapeHtml(nm)} (new)</option>`);
+        }
+
+        const isCreating = currentValue === '__NEW__';
+        opts.push(`<option value="__NEW__" ${isCreating ? 'selected' : ''}>➕ New category…</option>`);
+
+        return opts.join('');
+    }
+
+    function renderBulkTable() {
+        const tbody = document.getElementById('bulkTableBody');
+        const units = window.CONFIG?.UNITS || [{ value: 'piece', label: 'Piece' }];
+
+        tbody.innerHTML = bulkRows.map(row => {
+            const isNewCat = row.category_id === '__NEW__';
+
+            const unitOptions = units.map(u =>
+                `<option value="${u.value}" ${row.unit === u.value ? 'selected' : ''}>${u.label}</option>`
+            ).join('');
+
+            return `
+                <tr data-bulk-row="${row.id}">
+                    <td class="col-name">
+                        <input type="text" placeholder="Product name"
+                            value="${escapeHtml(row.name)}"
+                            oninput="updateBulkRow(${row.id}, 'name', this.value)" />
+                    </td>
+                    <td class="col-cat">
+                        ${isNewCat
+                            ? `<div class="new-cat-cell">
+                                    <input type="text" class="new-cat-input" placeholder="Type new category name"
+                                        value="${escapeHtml(row.new_cat_name || '')}"
+                                        data-bulk-newcat="${row.id}"
+                                        oninput="updateBulkRow(${row.id}, 'new_cat_name', this.value)"
+                                        onkeydown="if(event.key==='Enter'){event.preventDefault();confirmNewCategory(${row.id});}" />
+                                    <div class="new-cat-actions">
+                                        <button type="button" class="save"
+                                                onclick="confirmNewCategory(${row.id})">✓ Use</button>
+                                        <button type="button"
+                                                onclick="cancelNewCategory(${row.id})">✕ Cancel</button>
+                                    </div>
+                               </div>`
+                            : `<select onchange="onBulkCategoryChange(${row.id}, this.value)"
+                                       data-bulk-cat="${row.id}">
+                                   ${getCategoryOptionsForRow(row)}
+                               </select>`}
+                    </td>
+                    <td class="col-unit">
+                        <select onchange="updateBulkRow(${row.id}, 'unit', this.value)">
+                            ${unitOptions}
+                        </select>
+                    </td>
+                    <td class="col-cost">
+                        <input type="number" min="0" step="1" placeholder="0"
+                            value="${escapeHtml(row.cost)}"
+                            oninput="updateBulkRow(${row.id}, 'cost', this.value)" />
+                    </td>
+                    <td class="col-sell">
+                        <input type="number" min="0" step="1" placeholder="0"
+                            value="${escapeHtml(row.sell)}"
+                            oninput="updateBulkRow(${row.id}, 'sell', this.value)" />
+                    </td>
+                    <td class="col-margin">
+                        <div class="row-margin" data-bulk-margin="${row.id}">—</div>
+                    </td>
+                    <td class="col-qty">
+                        <input type="number" min="0" step="1" placeholder="0"
+                            value="${escapeHtml(row.qty)}"
+                            oninput="updateBulkRow(${row.id}, 'qty', this.value)" />
+                    </td>
+                    <td class="col-sku">
+                        <input type="text" placeholder="Auto"
+                            value="${escapeHtml(row.sku)}"
+                            data-bulk-sku="${row.id}"
+                            oninput="updateBulkRow(${row.id}, 'sku', this.value)" />
+                    </td>
+                    <td class="col-actions">
+                        <button class="row-remove" type="button"
+                                onclick="removeBulkRow(${row.id})" title="Remove row">🗑</button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        bulkRows.forEach(r => updateBulkMarginDisplay(r.id));
+
+        document.getElementById('bulkRowCount').textContent =
+            `${bulkRows.length} row${bulkRows.length === 1 ? '' : 's'} (max ${MAX_BULK_ROWS})`;
+
+        // Auto-focus new-cat input
+        const newCatInput = document.querySelector('[data-bulk-newcat]');
+        if (newCatInput && !newCatInput._focusedOnce) {
+            newCatInput.focus();
+            newCatInput._focusedOnce = true;
+        }
+    }
+
+    function onBulkCategoryChange(id, value) {
+        const row = bulkRows.find(r => r.id === id);
+        if (!row) return;
+
+        if (value === '__NEW__') {
+            row.category_id = '__NEW__';
+            row.new_cat_name = '';
+            renderBulkTable();
+            return;
+        }
+        row.category_id = value;
+        row.new_cat_name = '';
+    }
+
+    function confirmNewCategory(id) {
+        const row = bulkRows.find(r => r.id === id);
+        if (!row) return;
+        const name = (row.new_cat_name || '').trim();
+        if (!name || name.length < 2) {
+            showToast('New category name must be at least 2 characters', 'error');
+            return;
+        }
+        // Commit to a "new:Name" sentinel and re-render — the dropdown
+        // will now show "➕ Name (new)" as the selected option
+        row.category_id = `new:${name}`;
+        row.new_cat_name = '';
+        renderBulkTable();
+    }
+
+    function cancelNewCategory(id) {
+        const row = bulkRows.find(r => r.id === id);
+        if (!row) return;
+        row.category_id = '';
+        row.new_cat_name = '';
+        renderBulkTable();
+    }
+
+    function updateBulkTotals() {
+        const valid = bulkRows.filter(r => r.name && r.name.trim().length >= 2);
+        const units = valid.reduce((s, r) => s + (parseInt(r.qty) || 0), 0);
+        const cost  = valid.reduce((s, r) => s + ((parseFloat(r.cost) || 0) * (parseInt(r.qty) || 0)), 0);
+        const retail = valid.reduce((s, r) => s + ((parseFloat(r.sell) || 0) * (parseInt(r.qty) || 0)), 0);
+
+        document.getElementById('bulkTotals').innerHTML = `
+            <span>Rows: <strong>${bulkRows.length}</strong></span>
+            <span>Units: <strong>${units.toLocaleString()}</strong></span>
+            <span>Cost: <strong class="val-green">${formatCurrency(cost)}</strong></span>
+            <span>Retail: <strong class="val-green">${formatCurrency(retail)}</strong></span>
+        `;
+    }
+
+    async function saveBulkImport() {
+        const filled = bulkRows.filter(r => r.name && r.name.trim().length >= 2);
+
+        if (filled.length === 0) {
+            showToast('Add at least one row with a name', 'warning');
+            return;
+        }
+        if (filled.length > MAX_BULK_ROWS) {
+            showToast(`Maximum ${MAX_BULK_ROWS} rows`, 'error');
+            return;
+        }
+
+        for (let i = 0; i < filled.length; i++) {
+            const r = filled[i];
+            const cost = parseFloat(r.cost);
+            const sell = parseFloat(r.sell);
+            const qty = parseInt(r.qty);
+
+            if (isNaN(cost) || cost < 0) {
+                showToast(`Row "${r.name}": cost price is required`, 'error');
+                return;
+            }
+            if (isNaN(sell) || sell < 0) {
+                showToast(`Row "${r.name}": selling price is required`, 'error');
+                return;
+            }
+            if (isNaN(qty) || qty < 0) {
+                showToast(`Row "${r.name}": quantity is required`, 'error');
+                return;
+            }
+            if (r.category_id === '__NEW__') {
+                showToast(`Row "${r.name}": click "✓ Use" to confirm the new category, or cancel it`, 'error');
+                return;
+            }
+            if (String(r.category_id).startsWith('new:')) {
+                const nm = String(r.category_id).slice(4).trim();
+                if (!nm || nm.length < 2) {
+                    showToast(`Row "${r.name}": new category name is empty`, 'error');
+                    return;
+                }
+            }
+        }
+
+        // Build payload
+        const newCategories = new Set();
+        const productsPayload = filled.map(r => {
+            let category_id = r.category_id || '';
+            if (String(category_id).startsWith('new:')) {
+                const nm = String(category_id).slice(4).trim();
+                newCategories.add(nm);
+            }
+            return {
+                name: r.name.trim(),
+                category_id: category_id || null,
+                unit_of_measure: r.unit || 'piece',
+                cost_price: parseFloat(r.cost),
+                selling_price: parseFloat(r.sell),
+                quantity: parseInt(r.qty),
+                sku: r.sku && r.sku.trim() ? r.sku.trim() : undefined
+            };
+        });
+
+        const payload = {
+            products: productsPayload,
+            new_categories: [...newCategories]
+        };
+
+        console.log('🔍 BULK PAYLOAD:', payload);
+
+        const btn = document.getElementById('bulkSaveBtn');
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+
+        try {
+            const result = await apiRequest('/products/bulk', {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+
+            const summary = result?.data?.totals || {};
+            const created = summary.products_created || productsPayload.length;
+            const cats = summary.categories_created || 0;
+
+            showToast(
+                `✅ ${created} product${created === 1 ? '' : 's'} added` +
+                (cats > 0 ? ` · ${cats} new categor${cats === 1 ? 'y' : 'ies'}` : '') +
+                ' — owner notified',
+                'success'
+            );
+
+            closeModal('bulkImportModal');
+            bulkRows = [];
+
+            // Refresh everything so new categories appear everywhere
+            await loadProducts();
+
+            console.log('✅ Categories after save:', categories.map(c => c.name));
+        } catch (err) {
+            console.error('Bulk import failed:', err);
+            showToast('Bulk import failed: ' + err.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Save All →';
+        }
+    }
+
+    // ============================================
+    // LOW STOCK NOTIFY
+    // ============================================
+    function checkLowStockAndNotify() {
+        const out = products.filter(p => p.stock <= 0);
+        const low = products.filter(p => p.stock > 0 && p.stock <= p.minLevel);
+        if (!out.length && !low.length) return;
+        if (!hasPerm('stock.view')) return;
+        let msg = '⚠️ Stock Alert: ';
+        const bits = [];
+        if (out.length) bits.push(out.length + ' out of stock');
+        if (low.length) bits.push(low.length + ' low stock');
+        showToast(msg + bits.join(', '), 'error');
+    }
+
+    // ============================================
+    // INIT
+    // ============================================
+    async function init() {
+        if (!requireAuth()) return;
+        await refreshCurrentUser();
+
+        if (!hasPerm('stock.view')) {
+            showToast('Access denied — you do not have stock permissions', 'error');
+            setTimeout(() => window.location.href = 'pos.html', 800);
+            return;
+        }
+
+        if (window.CONFIG?.APP?.NAME) {
+            const t = document.getElementById('appTitle');
+            if (t) t.textContent = CONFIG.APP.NAME;
+        }
+
+        document.getElementById('tabAll').style.display       = hasPerm('sales.view_all')  ? '' : 'none';
+         document.getElementById('tabCredits').style.display   = hasPerm('sales.view_all')  ? '' : 'none';
+        document.getElementById('tabReports').style.display   = hasPerm('reports.view')    ? '' : 'none';
+        document.getElementById('tabLive').style.display      = hasPerm('live.view')       ? '' : 'none';
+        document.getElementById('tabAnalytics').style.display = hasPerm('analytics.view')  ? '' : 'none';
+        document.getElementById('tabUsers').style.display     = hasPerm('users.view')      ? '' : 'none';
+
+        updateUserChip();
+        populateUnitSelect();
+        loadProducts().then(() => setTimeout(checkLowStockAndNotify, 1500));
+
+        console.log('✅ Stock page ready');
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

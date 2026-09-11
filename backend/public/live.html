@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FarmersChoice Agrovet — Live Dashboard</title>
+    <link rel="icon" type="image/png" href="assets/OIP.webp">
+    <link rel="stylesheet" href="css/shared.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        .live-status-bar {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 10px 14px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+        }
+        .live-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7);
+            animation: livePulse 2s infinite;
+        }
+        .live-dot.paused {
+            background: var(--text-muted);
+            animation: none;
+            box-shadow: none;
+        }
+        @keyframes livePulse {
+            0%   { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.6); }
+            70%  { box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); }
+        }
+        .live-status-bar .lbl {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+        .live-status-bar .lbl strong { color: var(--text-primary); }
+        .live-status-bar .spacer { flex: 1; }
+
+        /* Low stock banner */
+        .low-stock-banner {
+            background: rgba(220, 38, 38, 0.08);
+            border: 1px solid rgba(220, 38, 38, 0.35);
+            border-left: 4px solid var(--red);
+            color: #f87171;
+            padding: 12px 16px;
+            border-radius: var(--radius-sm);
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .low-stock-banner .ls-icon { font-size: 18px; }
+        .low-stock-banner .ls-text { flex: 1; font-size: 13px; }
+        .low-stock-banner .ls-text strong { color: #fca5a5; }
+        .low-stock-banner .ls-actions { display: flex; gap: 6px; }
+
+        /* Grids */
+        .live-grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+
+        /* Active staff cards */
+        .staff-list {
+            padding: 8px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .staff-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            background: var(--bg-primary);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .staff-card:hover { border-color: var(--accent); }
+        .staff-card.active {
+            border-color: var(--accent);
+            background: rgba(46, 125, 50, 0.1);
+        }
+        .staff-card .sc-avatar {
+            width: 34px; height: 34px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px;
+            background: rgba(46, 125, 50, 0.15);
+            color: var(--accent);
+            flex-shrink: 0;
+        }
+        .staff-card .sc-info { flex: 1; min-width: 0; }
+        .staff-card .sc-name {
+            font-size: 13px;
+            font-weight: 600;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .staff-card .sc-meta {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+        .staff-card .sc-amount {
+            font-family: var(--font-mono);
+            color: var(--green);
+            font-weight: 600;
+            font-size: 13px;
+            text-align: right;
+            flex-shrink: 0;
+        }
+        .staff-card .sc-role {
+            font-size: 9px;
+            margin-left: 6px;
+        }
+
+        /* Top products */
+        .top-list {
+            padding: 8px 12px;
+        }
+        .top-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 4px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .top-item:last-child { border-bottom: none; }
+        .top-item .ti-rank {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--text-muted);
+            width: 20px;
+            flex-shrink: 0;
+        }
+        .top-item .ti-info { flex: 1; min-width: 0; }
+        .top-item .ti-name {
+            font-size: 13px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .top-item .ti-meta {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+        .top-item .ti-amount {
+            font-family: var(--font-mono);
+            color: var(--green);
+            font-size: 13px;
+            font-weight: 600;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        /* Live feed */
+        .live-feed {
+            max-height: 420px;
+            overflow-y: auto;
+            padding: 6px 10px 10px;
+        }
+        .feed-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border-color);
+            border-left: 3px solid var(--accent);
+            background: var(--bg-primary);
+            border-radius: 3px;
+            margin-bottom: 6px;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        .feed-item.is-mine {
+            border-left-color: var(--green);
+            background: rgba(46, 125, 50, 0.06);
+        }
+        .feed-item.new-sale {
+            animation: newSaleFlash 1.5s ease-out;
+        }
+        @keyframes newSaleFlash {
+            0%   { background: rgba(46, 125, 50, 0.35); transform: scale(1.02); }
+            100% { background: rgba(46, 125, 50, 0.06); transform: scale(1); }
+        }
+        .feed-item .fi-time {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--text-muted);
+            width: 52px;
+            flex-shrink: 0;
+        }
+        .feed-item .fi-info { flex: 1; min-width: 0; }
+        .feed-item .fi-top {
+            display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+            margin-bottom: 2px;
+        }
+        .feed-item .fi-cashier {
+            font-weight: 600;
+            font-size: 13px;
+        }
+        .feed-item .fi-customer {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        .feed-item .fi-sub {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+        .feed-item .fi-amount {
+            font-family: var(--font-mono);
+            font-weight: 600;
+            color: var(--green);
+            font-size: 15px;
+            flex-shrink: 0;
+        }
+
+        /* Chart */
+        .chart-wrap {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+        }
+        .chart-title {
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+        }
+
+        /* Empty */
+        .empty-mini {
+            padding: 24px 16px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        .loading-spinner {
+            display: flex; justify-content: center; align-items: center;
+            padding: 24px; color: var(--text-muted); font-size: 13px;
+        }
+        .loading-spinner::before {
+            content: '';
+            width: 20px; height: 20px;
+            border: 3px solid var(--border-color);
+            border-top: 3px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 10px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .error-banner {
+            background: rgba(220, 38, 38, 0.1);
+            border: 1px solid rgba(220, 38, 38, 0.4);
+            color: #f87171;
+            padding: 14px 16px;
+            border-radius: var(--radius-sm);
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        @media (max-width: 900px) {
+            .live-grid-2 { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- HEADER -->
+    <header>
+        <div class="header-left">
+            <div class="header-logo">FC</div>
+            <div>
+                <div class="header-title" id="appTitle">FarmersChoice Agrovet</div>
+                <div class="header-sub" id="headerClock"></div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="theme-toggle-wrapper" onclick="toggleTheme()" role="button" tabindex="0">
+                <span class="toggle-icon" id="themeIcon">🌙</span>
+                <div class="theme-toggle-switch"><div class="toggle-slider"></div></div>
+            </div>
+            <div class="user-chip" id="userChip">
+                <div class="avatar" id="userAvatar">🧑‍💼</div>
+                <span id="userName">User</span>
+                <span style="color:var(--text-muted);font-size:11px;font-family:var(--font-mono);" id="userRole">EMPLOYEE</span>
+            </div>
+            <button class="btn-ghost btn-sm" onclick="handleLogout()">Logout</button>
+        </div>
+    </header>
+
+    <!-- NAV -->
+        <div class="navbar" id="navbar">
+        <a href="pos.html" class="nav-tab">Sell</a>
+        <a href="stock.html" class="nav-tab">Stock</a>
+        <a href="mysales.html" class="nav-tab">My Sales</a>
+        <a href="allsales.html" class="nav-tab" id="tabAll" style="display:none;">All Sales</a>
+        <a href="users.html" class="nav-tab" id="tabUsers" style="display:none;">Users</a>
+         <a href="credits.html" class="nav-tab " id="tabCredits" style="display:none;">Credits</a>
+        <a href="reports.html" class="nav-tab" id="tabReports" style="display:none;">Reports</a>
+        <a href="live.html" class="nav-tab active" id="tabLive" style="display:none;">Live</a>
+        <a href="analytics.html" class="nav-tab" id="tabAnalytics" style="display:none;">Analytics</a>
+    </div>
+
+    <!-- PAGE -->
+    <div class="page">
+        <div class="page-header">
+            <div class="page-title">Live Dashboard</div>
+            <div style="display:flex;gap:8px;">
+                <button class="btn-ghost btn-sm" onclick="loadLive(true)" title="Refresh now">🔄 Refresh</button>
+            </div>
+        </div>
+
+        <!-- Status bar -->
+        <div class="live-status-bar">
+            <span class="live-dot" id="liveDot"></span>
+            <span class="lbl">Status: <strong id="liveStatusLabel">Live</strong></span>
+            <span class="lbl">Last update: <strong id="lastUpdate">—</strong></span>
+            <span class="lbl">Next in: <strong id="nextIn">—</strong>s</span>
+            <span class="spacer"></span>
+            <button class="btn-ghost btn-sm" id="pauseBtn" onclick="togglePause()">⏸ Pause</button>
+        </div>
+
+        <div id="errorArea"></div>
+        <div id="lowStockArea"></div>
+
+        <!-- KPIs -->
+        <div class="stats-grid" id="liveStats"></div>
+
+        <!-- Row: Active staff + Hourly chart -->
+        <div class="live-grid-2">
+            <div class="panel">
+                <div class="panel-header">
+                    <span>Active Staff Today <span id="staffCountLabel" style="color:var(--accent);font-family:var(--font-mono);font-size:11px;"></span></span>
+                    <button class="btn-ghost btn-sm" id="clearStaffFilter" style="display:none;" onclick="clearStaffFilter()">Clear filter</button>
+                </div>
+                <div class="staff-list" id="staffList">
+                    <div class="loading-spinner">Loading staff...</div>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-header">Hourly Trend</div>
+                <div class="chart-wrap" style="border:none;background:transparent;padding:8px 12px 12px;">
+                    <div class="chart-title">Revenue by hour (today)</div>
+                    <canvas id="hourlyChart" height="130"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row: Top products + Live feed -->
+        <div class="live-grid-2">
+            <div class="panel">
+                <div class="panel-header">Top Products Today</div>
+                <div class="top-list" id="topProducts">
+                    <div class="loading-spinner">Loading...</div>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-header">
+                    <span>Live Sales Feed <span id="feedCountLabel" style="color:var(--accent);font-family:var(--font-mono);font-size:11px;"></span></span>
+                </div>
+                <div class="live-feed" id="liveFeed">
+                    <div class="loading-spinner">Loading feed...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="js/config.js"></script>
+    <script src="js/env.js"></script>
+    <script src="js/shared.js"></script>
+
+    <script>
+    // ============================================
+    // STATE
+    // ============================================
+    let currentData = null;        // latest payload from /sales/today
+    let currentChart = null;
+    let seenSaleIds = new Set();   // for new-sale detection
+    let selectedStaffId = null;    // null = all staff
+    let refreshTimer = null;
+    let countdownTimer = null;
+    let isPaused = false;
+    let secondsToNext = 15;
+
+    const REFRESH_INTERVAL = 15;   // seconds
+
+    // ============================================
+    // HELPERS
+    // ============================================
+    function escapeHtml(s) {
+        return String(s ?? '').replace(/[&<>"']/g, c => ({
+            '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+        }[c]));
+    }
+
+    function getInitials(name) {
+        return (name || 'U').trim().split(/\s+/).map(x => x[0]).slice(0, 2).join('').toUpperCase();
+    }
+
+    function fmtTime24(iso) {
+        if (!iso) return '—';
+        const d = new Date(iso);
+        return d.toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit', hour12: false });
+    }
+
+    function fmtNow() {
+        return new Date().toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+    }
+
+    // ============================================
+    // LOAD
+    // ============================================
+    async function loadLive(isManual = false) {
+        const errorArea = document.getElementById('errorArea');
+        if (isManual) showToast('Refreshing...', 'info');
+
+        try {
+            const [todayRes, lowStock] = await Promise.all([
+                fetchTodaySales(),
+                fetchLowStockProducts(5).catch(() => [])
+            ]);
+
+            const incoming = todayRes?.sales || [];
+            detectNewSales(incoming);
+            currentData = todayRes || { sales: [], total_revenue: 0, total_transactions: 0, average_transaction: 0 };
+
+            renderLowStock(lowStock || []);
+            renderKPIs(currentData);
+            renderStaff(currentData.sales);
+            renderHourlyChart(currentData.sales);
+            renderTopProducts(currentData.sales);
+            renderFeed(currentData.sales);
+
+            errorArea.innerHTML = '';
+            document.getElementById('lastUpdate').textContent = fmtNow();
+        } catch (err) {
+            console.error('loadLive failed:', err);
+            errorArea.innerHTML = `
+                <div class="error-banner">
+                    <div>
+                        <strong>Could not load live data.</strong><br>
+                        <span style="font-size:13px;">${escapeHtml(err.message || 'Unknown error')}</span>
+                    </div>
+                    <button class="btn-ghost btn-sm" onclick="loadLive(true)">Retry</button>
+                </div>`;
+            if (isManual) showToast('Refresh failed: ' + err.message, 'error');
+        }
+    }
+
+    function detectNewSales(incoming) {
+        if (seenSaleIds.size === 0) {
+            // first load — seed the set, don't toast
+            incoming.forEach(s => seenSaleIds.add(s.id));
+            return;
+        }
+        const fresh = incoming.filter(s => !seenSaleIds.has(s.id));
+        if (fresh.length) {
+            fresh.forEach(s => {
+                seenSaleIds.add(s.id);
+                const cashier = s.user?.full_name || 'Someone';
+                const amt = formatCurrency(s.total || 0);
+                showToast(`🔔 New sale: ${amt} by ${cashier}`, 'success');
+            });
+            // flash the newest item
+            setTimeout(() => {
+                const el = document.querySelector('.feed-item.new-sale');
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 100);
+        }
+    }
+
+    // ============================================
+    // LOW STOCK BANNER
+    // ============================================
+    function renderLowStock(items) {
+        const wrap = document.getElementById('lowStockArea');
+        if (!items.length) { wrap.innerHTML = ''; return; }
+
+        const top = items.slice(0, 3);
+        const more = items.length - top.length;
+
+        wrap.innerHTML = `
+            <div class="low-stock-banner">
+                <span class="ls-icon">⚠️</span>
+                <div class="ls-text">
+                    <strong>${items.length} product${items.length === 1 ? '' : 's'} low on stock:</strong>
+                    ${top.map(p => {
+                        const name = p.product?.name || p.name || 'Product';
+                        const stock = p.current_stock ?? p.total_stock ?? 0;
+                        return `${escapeHtml(name)} (${stock} left)`;
+                    }).join(', ')}
+                    ${more > 0 ? ` and ${more} more` : ''}
+                </div>
+                <div class="ls-actions">
+                    <a href="stock.html" class="btn-ghost btn-sm">View Stock</a>
+                </div>
+            </div>`;
+    }
+
+    // ============================================
+    // KPIs
+    // ============================================
+    function renderKPIs(data) {
+        const sales = data.sales || [];
+        const revenue = data.total_revenue || 0;
+        const count = data.total_transactions || 0;
+        const avg = data.average_transaction || 0;
+
+        // Top payment method today
+        const payTotals = {};
+        sales.forEach(s => {
+            const m = s.payment_method || 'Unknown';
+            payTotals[m] = (payTotals[m] || 0) + (s.total || 0);
+        });
+        const topPay = Object.entries(payTotals).sort((a, b) => b[1] - a[1])[0];
+
+        document.getElementById('liveStats').innerHTML = createStats([
+            ["Today's Revenue", formatCurrency(revenue), 'var(--green)'],
+            ['Transactions', count, 'var(--accent)'],
+            ['Avg Ticket', formatCurrency(avg), 'var(--text)'],
+            ['Top Payment', topPay ? `${topPay[0]} (${formatCurrency(topPay[1])})` : '—', 'var(--blue)']
+        ]);
+    }
+
+    // ============================================
+    // STAFF
+    // ============================================
+    function renderStaff(sales) {
+        const map = {};
+        sales.forEach(s => {
+            const id = s.user_id || s.user?.id || '__unknown__';
+            const name = s.user?.full_name || 'Unknown';
+            const role = s.user?.role || 'employee';
+            if (!map[id]) map[id] = { id, name, role, count: 0, revenue: 0 };
+            map[id].count += 1;
+            map[id].revenue += s.total || 0;
+        });
+
+        const staff = Object.values(map).sort((a, b) => b.revenue - a.revenue);
+        const wrap = document.getElementById('staffList');
+
+        document.getElementById('staffCountLabel').textContent = staff.length ? `(${staff.length})` : '';
+        document.getElementById('clearStaffFilter').style.display = selectedStaffId ? '' : 'none';
+
+        if (!staff.length) {
+            wrap.innerHTML = '<div class="empty-mini">No sales yet today.</div>';
+            return;
+        }
+
+        wrap.innerHTML = staff.map(st => {
+            const isActive = selectedStaffId === st.id;
+            return `
+                <div class="staff-card ${isActive ? 'active' : ''}" onclick="toggleStaffFilter('${st.id}')">
+                    <div class="sc-avatar">${getInitials(st.name)}</div>
+                    <div class="sc-info">
+                        <div class="sc-name">
+                            ${escapeHtml(st.name)}
+                            <span class="pill ${getRolePillClass(st.role)} sc-role">${escapeHtml(st.role.toUpperCase())}</span>
+                        </div>
+                        <div class="sc-meta">${st.count} sale${st.count === 1 ? '' : 's'} today</div>
+                    </div>
+                    <div class="sc-amount">${formatCurrency(st.revenue)}</div>
+                </div>`;
+        }).join('');
+    }
+
+    function toggleStaffFilter(id) {
+        selectedStaffId = (selectedStaffId === id) ? null : id;
+        if (currentData) {
+            renderStaff(currentData.sales);
+            renderFeed(currentData.sales);
+            renderKPIs(getFilteredData(currentData));
+        }
+    }
+
+    function clearStaffFilter() {
+        selectedStaffId = null;
+        if (currentData) {
+            renderStaff(currentData.sales);
+            renderFeed(currentData.sales);
+            renderKPIs(getFilteredData(currentData));
+        }
+    }
+
+    function getFilteredData(data) {
+        if (!selectedStaffId) return data;
+        const sales = (data.sales || []).filter(s => (s.user_id || s.user?.id) === selectedStaffId);
+        const revenue = sales.reduce((s, x) => s + (x.total || 0), 0);
+        return {
+            sales,
+            total_revenue: revenue,
+            total_transactions: sales.length,
+            average_transaction: sales.length ? revenue / sales.length : 0
+        };
+    }
+
+    // ============================================
+    // HOURLY CHART
+    // ============================================
+    function renderHourlyChart(sales) {
+        const hours = Array.from({ length: 24 }, (_, i) => i);
+        const buckets = hours.map(() => 0);
+
+        sales.forEach(s => {
+            const d = new Date(s.sale_date || s.created_at);
+            const h = d.getHours();
+            buckets[h] += (s.total || 0);
+        });
+
+        // Only show business hours range (first to last non-zero, min 8am-8pm)
+        let firstHour = 8, lastHour = 20;
+        for (let i = 0; i < 24; i++) {
+            if (buckets[i] > 0) {
+                if (i < firstHour) firstHour = i;
+                if (i > lastHour) lastHour = i;
+            }
+        }
+        firstHour = Math.max(0, firstHour - 1);
+        lastHour = Math.min(23, lastHour + 1);
+
+        const labels = [];
+        const data = [];
+        for (let h = firstHour; h <= lastHour; h++) {
+            labels.push(String(h).padStart(2, '0') + ':00');
+            data.push(buckets[h]);
+        }
+
+        if (currentChart) { currentChart.destroy(); currentChart = null; }
+        const canvas = document.getElementById('hourlyChart');
+        if (!canvas) return;
+
+        currentChart = new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Revenue',
+                    data,
+                    backgroundColor: '#2e7d32',
+                    borderRadius: 3
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, ticks: { font: { size: 10 } } },
+                    x: { ticks: { font: { size: 10 } } }
+                }
+            }
+        });
+    }
+
+    // ============================================
+    // TOP PRODUCTS
+    // ============================================
+    function renderTopProducts(sales) {
+        const map = {};
+        sales.forEach(s => {
+            (s.sale_items || []).forEach(it => {
+                const key = it.product_name || 'Unknown';
+                if (!map[key]) map[key] = { name: key, qty: 0, revenue: 0 };
+                map[key].qty += it.quantity || 0;
+                map[key].revenue += it.total_price || 0;
+            });
+        });
+
+        const list = Object.values(map).sort((a, b) => b.revenue - a.revenue).slice(0, 6);
+        const wrap = document.getElementById('topProducts');
+
+        if (!list.length) {
+            wrap.innerHTML = '<div class="empty-mini">No products sold today.</div>';
+            return;
+        }
+
+        wrap.innerHTML = list.map((p, i) => `
+            <div class="top-item">
+                <div class="ti-rank">#${i + 1}</div>
+                <div class="ti-info">
+                    <div class="ti-name">${escapeHtml(p.name)}</div>
+                    <div class="ti-meta">${p.qty} unit${p.qty === 1 ? '' : 's'}</div>
+                </div>
+                <div class="ti-amount">${formatCurrency(p.revenue)}</div>
+            </div>
+        `).join('');
+    }
+
+    // ============================================
+    // LIVE FEED
+    // ============================================
+    function renderFeed(sales) {
+        let list = (sales || []).slice();
+        if (selectedStaffId) {
+            list = list.filter(s => (s.user_id || s.user?.id) === selectedStaffId);
+        }
+        // Newest first
+        list.sort((a, b) => new Date(b.sale_date || b.created_at) - new Date(a.sale_date || a.created_at));
+
+        const recent = list.slice(0, 25);
+        const wrap = document.getElementById('liveFeed');
+        const me = getCurrentUser();
+
+        document.getElementById('feedCountLabel').textContent = list.length ? `(${list.length})` : '';
+
+        if (!recent.length) {
+            wrap.innerHTML = '<div class="empty-mini">No sales yet today.</div>';
+            return;
+        }
+
+        wrap.innerHTML = recent.map(s => {
+            const isMine = s.user_id === me?.id;
+            const isFresh = !seenSaleIds.has(s.id) || false;  // freshly seen flag is set in detectNewSales
+            const itemCount = (s.sale_items || []).length;
+            const cashier = s.user?.full_name || 'Unknown';
+            const time = fmtTime24(s.sale_date || s.created_at);
+            return `
+                <div class="feed-item ${isMine ? 'is-mine' : ''}">
+                    <div class="fi-time">${time}</div>
+                    <div class="fi-info">
+                        <div class="fi-top">
+                            <span class="fi-cashier">${escapeHtml(cashier)}</span>
+                            <span class="fi-customer">→ ${escapeHtml(s.customer_name || 'Walk-in')}</span>
+                            <span class="pill ${getPaymentPillClass(s.payment_method)}" style="font-size:10px;">${escapeHtml(s.payment_method || '')}</span>
+                        </div>
+                        <div class="fi-sub">${itemCount} item${itemCount === 1 ? '' : 's'} · ${escapeHtml(s.receipt_number || '')}</div>
+                    </div>
+                    <div class="fi-amount">${formatCurrency(s.total || 0)}</div>
+                </div>`;
+        }).join('');
+    }
+
+    // ============================================
+    // PAUSE / RESUME + TIMERS
+    // ============================================
+    function togglePause() {
+        isPaused = !isPaused;
+        document.getElementById('pauseBtn').textContent = isPaused ? '▶ Resume' : '⏸ Pause';
+        document.getElementById('liveDot').classList.toggle('paused', isPaused);
+        document.getElementById('liveStatusLabel').textContent = isPaused ? 'Paused' : 'Live';
+        showToast(isPaused ? 'Auto-refresh paused' : 'Auto-refresh resumed', 'info');
+        if (!isPaused) startTimers();
+    }
+
+    function startTimers() {
+        if (refreshTimer) clearInterval(refreshTimer);
+        if (countdownTimer) clearInterval(countdownTimer);
+
+        secondsToNext = REFRESH_INTERVAL;
+
+        countdownTimer = setInterval(() => {
+            if (isPaused) return;
+            secondsToNext--;
+            document.getElementById('nextIn').textContent = secondsToNext;
+        }, 1000);
+
+        refreshTimer = setInterval(() => {
+            if (isPaused) return;
+            loadLive(false);
+            secondsToNext = REFRESH_INTERVAL;
+        }, REFRESH_INTERVAL * 1000);
+    }
+
+    // ============================================
+    // INIT
+    // ============================================
+    async function init() {
+        if (!requireAuth()) return;
+
+        // Refresh permissions from backend
+        await refreshCurrentUser();
+
+        // Gate: need live.view
+        if (!hasPerm('live.view')) {
+            showToast('Access denied — you do not have live permission', 'error');
+            setTimeout(() => window.location.href = 'pos.html', 800);
+            return;
+        }
+
+        if (window.CONFIG?.APP?.NAME) {
+            const t = document.getElementById('appTitle');
+            if (t) t.textContent = CONFIG.APP.NAME;
+        }
+
+        // Nav gating per permission
+        document.getElementById('tabAll').style.display       = hasPerm('sales.view_all')  ? '' : 'none';
+         document.getElementById('tabCredits').style.display   = hasPerm('sales.view_all')  ? '' : 'none';
+        document.getElementById('tabReports').style.display   = hasPerm('reports.view')    ? '' : 'none';
+        document.getElementById('tabLive').style.display      = hasPerm('live.view')       ? '' : 'none';
+        document.getElementById('tabAnalytics').style.display = hasPerm('analytics.view')  ? '' : 'none';
+        document.getElementById('tabUsers').style.display     = hasPerm('users.view')      ? '' : 'none';
+
+        updateUserChip();
+
+        loadLive(false);
+        startTimers();
+
+        console.log('✅ Live Dashboard ready');
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
