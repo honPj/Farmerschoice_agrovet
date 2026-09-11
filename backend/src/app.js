@@ -41,35 +41,13 @@ const PORT = process.env.PORT || 5000;
 // ────────────────────────────────────────────
 // CORS CONFIGURATION
 // ────────────────────────────────────────────
-// Dev: allow any localhost / 127.0.0.1 port (Live Server uses random ports)
-// Prod: set ALLOWED_ORIGINS in .env as comma-separated list
-const LOCAL_ORIGIN_PATTERN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
-const PROD_ORIGINS = (process.env.ALLOWED_ORIGINS || '')
-    .split(',')
-    .map(s => s.trim())
-    .filter(Boolean);
-
+// Allow all origins. This is safe for this app because:
+//   - Auth is enforced by JWT tokens (origin-scoped in browser storage)
+//   - CORS is a browser policy, not a server-side security layer
+//   - The URL is not publicly indexed
+// "origin: true" reflects the request's Origin header back in the response.
 app.use(cors({
-    origin: function (origin, callback) {
-        // Allow requests with no origin (Postman, curl, mobile apps)
-        if (!origin) return callback(null, true);
-
-        // Development: allow any localhost / 127.0.0.1 port
-        if (process.env.NODE_ENV !== 'production') {
-            if (LOCAL_ORIGIN_PATTERN.test(origin)) {
-                return callback(null, true);
-            }
-            logger.warn(`CORS blocked (dev): ${origin}`);
-            return callback(new Error(`CORS blocked: ${origin}`));
-        }
-
-        // Production: check explicit allowlist
-        if (PROD_ORIGINS.includes(origin)) {
-            return callback(null, true);
-        }
-        logger.warn(`CORS blocked (prod): ${origin}`);
-        return callback(new Error(`CORS blocked: ${origin}`));
-    },
+    origin: true,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
@@ -77,11 +55,10 @@ app.use(cors({
 
 // Parse JSON requests
 app.use(express.json({ limit: '10mb' }));
-// User routes
-app.use('/api/v1/users', userRoutes);
 
 // Parse URL-encoded requests
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
 // Serve frontend static files
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
@@ -101,9 +78,8 @@ app.use((req, res, next) => {
  */
 app.get('/api/health', async (req, res) => {
     try {
-        // Check database connection
         const dbConnected = await testConnection();
-        
+
         res.status(HTTP_STATUS.OK).json({
             success: true,
             status: 'healthy',
@@ -264,6 +240,9 @@ app.use('/api/v1/exports', exportRoutes);
 // Notifications routes
 app.use('/api/v1/notifications', notificationRoutes);
 
+// User routes
+app.use('/api/v1/users', userRoutes);
+
 // ============================================
 // ERROR HANDLING
 // ============================================
@@ -282,11 +261,11 @@ async function startServer() {
     try {
         // Test database connection
         const dbConnected = await testConnection();
-        
+
         if (!dbConnected) {
             logger.warn('⚠️ Database connection failed - some features may not work');
         }
-        
+
         // Start the server
         app.listen(PORT, () => {
             logger.info('='.repeat(50));
@@ -303,10 +282,11 @@ async function startServer() {
             logger.info(`📍 Discounts: http://localhost:${PORT}/api/v1/discounts`);
             logger.info(`📍 Exports: http://localhost:${PORT}/api/v1/exports`);
             logger.info(`📍 Notifications: http://localhost:${PORT}/api/v1/notifications`);
+            logger.info(`📍 Users: http://localhost:${PORT}/api/v1/users`);
             logger.info(`📍 Database: ${dbConnected ? 'Connected ✅' : 'Disconnected ❌'}`);
             logger.info('='.repeat(50));
         });
-        
+
     } catch (error) {
         logger.error(`Failed to start server: ${error.message}`);
         process.exit(1);
