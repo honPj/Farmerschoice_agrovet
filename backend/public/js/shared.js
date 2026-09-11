@@ -9,14 +9,20 @@ let API_BASE;
         console.log('🔗 API_BASE (override):', API_BASE);
         return;
     }
-    if (window.CONFIG?.ENV?.apiUrl) {
-        API_BASE = window.CONFIG.ENV.apiUrl;
-    } else if (window.CONFIG?.API?.DEV_URL) {
-        API_BASE = window.CONFIG.API.DEV_URL;
+
+    // Detect: if we're on localhost, use DEV_URL; otherwise use PROD_URL
+    const hostname = window.location.hostname;
+    const isLocalhost = hostname === 'localhost'
+                     || hostname === '127.0.0.1'
+                     || hostname === '';
+
+    if (isLocalhost) {
+        API_BASE = window.CONFIG?.API?.DEV_URL || 'http://localhost:5001/api/v1';
     } else {
-        API_BASE = 'http://localhost:5001/api/v1';
+        API_BASE = window.CONFIG?.API?.PROD_URL || '/api/v1';
     }
-    console.log('🔗 API_BASE:', API_BASE);
+
+    console.log('🔗 API_BASE:', API_BASE, '(hostname:', hostname, ')');
 })();
 
 // ──────────────────────────────────────────────
