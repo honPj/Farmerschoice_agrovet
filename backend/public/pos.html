@@ -277,7 +277,7 @@
             overflow-y: auto;
         }
 
-        /* Discount Modal */
+        /* Discount / Markup Modal */
         #discountModal .modal {
             max-width: 620px;
             width: 95%;
@@ -309,52 +309,6 @@
         .discount-tab-content {
             padding: 16px 20px 20px;
             min-height: 260px;
-        }
-        .discount-card {
-            background: var(--bg-primary);
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius-sm);
-            padding: 12px 14px;
-            margin-bottom: 8px;
-            cursor: pointer;
-            transition: all 0.15s;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        .discount-card:hover {
-            border-color: var(--accent);
-            background: rgba(46, 125, 50, 0.05);
-        }
-        .discount-card.disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        .discount-card .dc-icon {
-            font-size: 22px;
-            width: 32px; text-align: center;
-        }
-        .discount-card .dc-info { flex: 1; min-width: 0; }
-        .discount-card .dc-name {
-            font-size: 13px; font-weight: 600;
-            margin-bottom: 2px;
-        }
-        .discount-card .dc-meta {
-            font-size: 11px; color: var(--text-muted);
-            font-family: var(--font-mono);
-        }
-        .discount-card .dc-value {
-            font-family: var(--font-mono);
-            color: var(--green);
-            font-weight: 600;
-            font-size: 14px;
-            text-align: right;
-        }
-        .discount-card .dc-value small {
-            display: block;
-            color: var(--text-muted);
-            font-size: 10px;
-            font-weight: 400;
         }
 
         .manual-discount-row {
@@ -511,6 +465,13 @@
                         </span>
                         <span class="mono" id="cartDiscount">− KSh 0</span>
                     </div>
+                    <div class="cart-row" id="markupRow" style="display:none;color:var(--yellow);">
+                        <span>
+                            Price Increase
+                            <span class="discount-chip" id="markupChip" style="margin-left:6px;background:rgba(243,156,18,0.15);color:var(--yellow);"></span>
+                        </span>
+                        <span class="mono" id="cartMarkup">+ KSh 0</span>
+                    </div>
                     <div style="display:flex;justify-content:flex-end;margin-bottom:6px;">
                         <button class="discount-btn" onclick="openDiscountModal()" id="discountBtn">🎁 Add Discount</button>
                     </div>
@@ -563,25 +524,20 @@
         </div>
     </div>
 
-    <!-- DISCOUNT MODAL -->
+    <!-- DISCOUNT / MARKUP MODAL -->
     <div class="overlay" id="discountModal">
         <div class="modal">
             <div class="modal-header">
-                <h3>🎁 Apply Discount</h3>
+                <h3>Adjust Sale</h3>
                 <button class="btn-ghost btn-sm" onclick="closeModal('discountModal')">Close</button>
             </div>
             <div class="discount-tabs">
-                <button class="discount-tab active" id="tabActiveBtn" onclick="switchDiscountTab('active')">Active Discounts</button>
-                <button class="discount-tab" id="tabManualBtn" onclick="switchDiscountTab('manual')">Manual Entry</button>
+                <button class="discount-tab active" id="tabDiscountBtn" onclick="switchAdjustTab('discount')">🎁 Discount</button>
+                <button class="discount-tab" id="tabMarkupBtn" onclick="switchAdjustTab('markup')">💹 Price Increase</button>
             </div>
 
-            <div class="discount-tab-content" id="tabActiveContent">
-                <div id="activeDiscountsList">
-                    <div class="loading-spinner">Loading discounts...</div>
-                </div>
-            </div>
-
-            <div class="discount-tab-content" id="tabManualContent" style="display:none;">
+            <!-- DISCOUNT TAB -->
+            <div class="discount-tab-content" id="tabDiscountContent">
                 <div class="manual-discount-row">
                     <input type="number" id="manualDiscountInput" min="0" step="1" placeholder="0" oninput="updateManualPreview()" />
                     <div class="seg-toggle">
@@ -589,12 +545,24 @@
                         <button id="segPct" onclick="setDiscountUnit('pct')">%</button>
                     </div>
                 </div>
-                <div class="manual-preview" id="manualPreview"></div>
+                <div class="manual-preview" id="discountPreview"></div>
+            </div>
+
+            <!-- MARKUP TAB -->
+            <div class="discount-tab-content" id="tabMarkupContent" style="display:none;">
+                <div class="manual-discount-row">
+                    <input type="number" id="markupInput" min="0" step="1" placeholder="0" oninput="updateManualPreview()" />
+                    <div class="seg-toggle">
+                        <button class="active" id="segMarkupKsh" onclick="setMarkupUnit('ksh')">KSh</button>
+                        <button id="segMarkupPct" onclick="setMarkupUnit('pct')">%</button>
+                    </div>
+                </div>
+                <div class="manual-preview" id="markupPreview"></div>
             </div>
 
             <div class="modal-footer">
                 <button class="btn-ghost btn-sm" onclick="closeModal('discountModal')">Cancel</button>
-                <button class="btn-primary-solid btn-sm" onclick="applyManualDiscount()" id="applyManualBtn" style="display:none;">Apply</button>
+                <button class="btn-primary-solid btn-sm" onclick="applyAdjustments()" id="applyAdjustBtn">Apply</button>
             </div>
         </div>
     </div>
@@ -633,9 +601,10 @@
     let isSubmitting = false;
     let lastReceiptText = '';
 
-    let appliedDiscount = null;    // { type: 'fixed'|'percentage', value, amount, name?, id? }
+    let appliedDiscount = null;    // { type: 'fixed'|'percentage', value, name }
+    let appliedMarkup = null;      // { type: 'fixed'|'percentage', value, name }
     let manualDiscountUnit = 'ksh';
-    let activeDiscountsCache = null;
+    let markupUnit = 'ksh';
 
     const MAIN_BRANCH_ID = '22222222-2222-2222-2222-222222222222';
 
@@ -672,15 +641,22 @@
         if (!appliedDiscount) return 0;
         const subtotal = getSubtotal();
         if (appliedDiscount.type === 'percentage') {
-            let amt = subtotal * (appliedDiscount.value / 100);
-            if (appliedDiscount.max_discount) amt = Math.min(amt, appliedDiscount.max_discount);
-            return Math.round(amt);
+            return Math.round(subtotal * (appliedDiscount.value / 100));
         }
         return Math.round(Math.min(appliedDiscount.value, subtotal));
     }
 
+    function getMarkupAmount() {
+        if (!appliedMarkup) return 0;
+        const base = getSubtotal() - getDiscountAmount();
+        if (appliedMarkup.type === 'percentage') {
+            return Math.round(base * (appliedMarkup.value / 100));
+        }
+        return Math.round(appliedMarkup.value);
+    }
+
     function getTotal() {
-        return Math.max(0, getSubtotal() - getDiscountAmount());
+        return Math.max(0, getSubtotal() - getDiscountAmount() + getMarkupAmount());
     }
 
     function getDeposit() {
@@ -828,6 +804,7 @@
         const totalQty = cart.reduce((s, c) => s + c.qty, 0);
         const subtotal = getSubtotal();
         const discount = getDiscountAmount();
+        const markup = getMarkupAmount();
         const total = getTotal();
 
         document.getElementById('cartItemCount').textContent = totalQty;
@@ -837,7 +814,6 @@
 
         // Discount row
         const dRow = document.getElementById('discountRow');
-        const dBtn = document.getElementById('discountBtn');
         const dChip = document.getElementById('discountChip');
 
         if (appliedDiscount) {
@@ -848,9 +824,31 @@
             else if (appliedDiscount.type === 'percentage') label = appliedDiscount.value + '%';
             else label = formatCurrency(appliedDiscount.value);
             dChip.innerHTML = `${escapeHtml(label)} <span class="rm" onclick="event.stopPropagation();removeDiscount()" title="Remove discount">✕</span>`;
-            dBtn.textContent = '🎁 Change Discount';
         } else {
             dRow.style.display = 'none';
+        }
+
+        // Markup row
+        const mRow = document.getElementById('markupRow');
+        const mChip = document.getElementById('markupChip');
+
+        if (appliedMarkup) {
+            mRow.style.display = '';
+            document.getElementById('cartMarkup').textContent = '+ ' + formatCurrency(markup);
+            let mLabel = '';
+            if (appliedMarkup.name) mLabel = appliedMarkup.name;
+            else if (appliedMarkup.type === 'percentage') mLabel = '+' + appliedMarkup.value + '%';
+            else mLabel = '+' + formatCurrency(appliedMarkup.value);
+            mChip.innerHTML = `${escapeHtml(mLabel)} <span class="rm" onclick="event.stopPropagation();removeMarkup()" title="Remove markup">✕</span>`;
+        } else {
+            mRow.style.display = 'none';
+        }
+
+        // Button label
+        const dBtn = document.getElementById('discountBtn');
+        if (appliedDiscount || appliedMarkup) {
+            dBtn.textContent = '🎁 Change Adjustment';
+        } else {
             dBtn.textContent = '🎁 Add Discount';
         }
 
@@ -887,7 +885,6 @@
         const creditFields = document.getElementById('creditFields');
         if (paymentMethod === 'Credit') {
             creditFields.classList.add('open');
-            // Default due date = 14 days from now
             const dd = document.getElementById('dueDate');
             if (!dd.value) {
                 const d = new Date();
@@ -915,118 +912,170 @@
         if (!confirm('Clear the cart?')) return;
         cart = [];
         appliedDiscount = null;
+        appliedMarkup = null;
         renderCart();
         showToast('Cart cleared', 'info');
     }
 
     // ============================================
-    // DISCOUNT MODAL
+    // DISCOUNT / MARKUP MODAL
     // ============================================
     function openDiscountModal() {
         if (!cart.length) {
             showToast('Add items to cart first', 'warning');
             return;
         }
-        // Default: show active tab, but if any applied → show current state
-        switchDiscountTab('active');
-        loadActiveDiscounts();
+
+        // Prefill discount
+        if (appliedDiscount) {
+            if (appliedDiscount.type === 'percentage') {
+                setDiscountUnit('pct');
+                document.getElementById('manualDiscountInput').value = appliedDiscount.value;
+            } else {
+                setDiscountUnit('ksh');
+                document.getElementById('manualDiscountInput').value = appliedDiscount.value;
+            }
+        } else {
+            document.getElementById('manualDiscountInput').value = '';
+        }
+
+        // Prefill markup
+        if (appliedMarkup) {
+            if (appliedMarkup.type === 'percentage') {
+                setMarkupUnit('pct');
+                document.getElementById('markupInput').value = appliedMarkup.value;
+            } else {
+                setMarkupUnit('ksh');
+                document.getElementById('markupInput').value = appliedMarkup.value;
+            }
+        } else {
+            document.getElementById('markupInput').value = '';
+        }
+
+        // Open on whichever tab has an active adjustment, else discount
+        if (appliedMarkup && !appliedDiscount) {
+            switchAdjustTab('markup');
+        } else {
+            switchAdjustTab('discount');
+        }
+
+        updateManualPreview();
         openModal('discountModal');
     }
 
-    function switchDiscountTab(tab) {
-        const isActive = tab === 'active';
-        document.getElementById('tabActiveBtn').classList.toggle('active', isActive);
-        document.getElementById('tabManualBtn').classList.toggle('active', !isActive);
-        document.getElementById('tabActiveContent').style.display = isActive ? '' : 'none';
-        document.getElementById('tabManualContent').style.display = isActive ? 'none' : '';
-        document.getElementById('applyManualBtn').style.display = isActive ? 'none' : '';
-
-        if (!isActive) {
-            updateManualPreview();
-        }
+    function switchAdjustTab(tab) {
+        const isDiscount = tab === 'discount';
+        document.getElementById('tabDiscountBtn').classList.toggle('active', isDiscount);
+        document.getElementById('tabMarkupBtn').classList.toggle('active', !isDiscount);
+        document.getElementById('tabDiscountContent').style.display = isDiscount ? '' : 'none';
+        document.getElementById('tabMarkupContent').style.display = isDiscount ? 'none' : '';
+        updateManualPreview();
     }
 
-    async function loadActiveDiscounts() {
-        const wrap = document.getElementById('activeDiscountsList');
-        if (activeDiscountsCache) {
-            renderActiveDiscounts(activeDiscountsCache);
-            return;
-        }
-        wrap.innerHTML = '<div class="loading-spinner">Loading discounts...</div>';
-
-        try {
-            const res = await apiRequest('/discounts/active');
-            activeDiscountsCache = res.data || [];
-            renderActiveDiscounts(activeDiscountsCache);
-        } catch (err) {
-            console.error('loadActiveDiscounts failed:', err);
-            wrap.innerHTML = `
-                <div class="error-banner">
-                    <div>Could not load discounts: ${escapeHtml(err.message)}</div>
-                    <button class="btn-ghost btn-sm" onclick="activeDiscountsCache=null;loadActiveDiscounts()">Retry</button>
-                </div>`;
-        }
+    function setDiscountUnit(unit) {
+        manualDiscountUnit = unit;
+        document.getElementById('segKsh').classList.toggle('active', unit === 'ksh');
+        document.getElementById('segPct').classList.toggle('active', unit === 'pct');
+        updateManualPreview();
     }
 
-    function renderActiveDiscounts(list) {
-        const wrap = document.getElementById('activeDiscountsList');
+    function setMarkupUnit(unit) {
+        markupUnit = unit;
+        document.getElementById('segMarkupKsh').classList.toggle('active', unit === 'ksh');
+        document.getElementById('segMarkupPct').classList.toggle('active', unit === 'pct');
+        updateManualPreview();
+    }
+
+    function updateManualPreview() {
         const subtotal = getSubtotal();
 
-        if (!list || !list.length) {
-            wrap.innerHTML = '<div class="empty-state">No active discounts right now.<br><small>Use the Manual tab to apply a custom discount.</small></div>';
-            return;
+        // --- Discount preview ---
+        const dPrev = document.getElementById('discountPreview');
+        const dRaw = parseFloat(document.getElementById('manualDiscountInput').value);
+        let discountAmount = 0;
+        let discountError = '';
+        if (!isNaN(dRaw) && dRaw > 0) {
+            if (manualDiscountUnit === 'pct') {
+                if (dRaw > 100) discountError = 'Percentage cannot exceed 100%';
+                else discountAmount = Math.round(subtotal * (dRaw / 100));
+            } else {
+                if (dRaw > subtotal) discountError = 'Amount cannot exceed subtotal';
+                else discountAmount = Math.round(dRaw);
+            }
         }
 
-        wrap.innerHTML = list.map(d => {
-            const isPct = d.discount_type === 'percentage';
-            const valueLabel = isPct ? `${d.discount_value}%` : formatCurrency(d.discount_value);
-            const minReq = Number(d.min_purchase) || 0;
-            const eligible = subtotal >= minReq;
-            const reason = !eligible ? `Requires min. purchase ${formatCurrency(minReq)}` : '';
-            const maxNote = d.max_discount ? `Max ${formatCurrency(d.max_discount)}` : '';
-
-            return `
-                <div class="discount-card ${eligible ? '' : 'disabled'}"
-                     onclick="${eligible ? `applyActiveDiscount('${d.id}')` : ''}">
-                    <div class="dc-icon">🎁</div>
-                    <div class="dc-info">
-                        <div class="dc-name">${escapeHtml(d.name || 'Discount')}</div>
-                        <div class="dc-meta">
-                            ${eligible ? (d.description ? escapeHtml(d.description) : 'Tap to apply') : escapeHtml(reason)}
-                            ${maxNote && eligible ? ' · ' + maxNote : ''}
-                        </div>
-                    </div>
-                    <div class="dc-value">
-                        ${valueLabel}
-                        <small>${isPct ? 'off' : 'off'}</small>
-                    </div>
-                </div>
+        if (discountError) {
+            dPrev.innerHTML = `<div class="row"><span class="red">${escapeHtml(discountError)}</span><span></span></div>`;
+        } else if (discountAmount <= 0) {
+            dPrev.innerHTML = '<div class="row"><span>Enter a discount to preview</span><span></span></div>';
+        } else {
+            const after = subtotal - discountAmount;
+            dPrev.innerHTML = `
+                <div class="row"><span>Subtotal</span><span>${formatCurrency(subtotal)}</span></div>
+                <div class="row"><span>Discount</span><span class="red">− ${formatCurrency(discountAmount)}</span></div>
+                <div class="row total"><span>New Subtotal</span><span class="green">${formatCurrency(after)}</span></div>
             `;
-        }).join('');
-    }
-
-    function applyActiveDiscount(id) {
-        const d = activeDiscountsCache.find(x => x.id === id);
-        if (!d) { showToast('Discount not found', 'error'); return; }
-
-        const subtotal = getSubtotal();
-        const minReq = Number(d.min_purchase) || 0;
-        if (subtotal < minReq) {
-            showToast(`Minimum purchase ${formatCurrency(minReq)} required`, 'error');
-            return;
         }
 
-        appliedDiscount = {
-            id: d.id,
-            name: d.name,
-            type: d.discount_type === 'percentage' ? 'percentage' : 'fixed',
-            value: Number(d.discount_value) || 0,
-            max_discount: d.max_discount ? Number(d.max_discount) : null
-        };
+        // --- Markup preview ---
+        const mPrev = document.getElementById('markupPreview');
+        const mRaw = parseFloat(document.getElementById('markupInput').value);
+        let markupAmount = 0;
+        if (!isNaN(mRaw) && mRaw > 0) {
+            if (markupUnit === 'pct') {
+                markupAmount = Math.round(subtotal * (mRaw / 100));
+            } else {
+                markupAmount = Math.round(mRaw);
+            }
+        }
+
+        if (markupAmount <= 0) {
+            mPrev.innerHTML = '<div class="row"><span>Enter a price increase to preview</span><span></span></div>';
+        } else {
+            const after = subtotal + markupAmount;
+            mPrev.innerHTML = `
+                <div class="row"><span>Subtotal</span><span>${formatCurrency(subtotal)}</span></div>
+                <div class="row"><span>Price Increase</span><span style="color:var(--yellow);">+ ${formatCurrency(markupAmount)}</span></div>
+                <div class="row total"><span>New Subtotal</span><span class="green">${formatCurrency(after)}</span></div>
+            `;
+        }
+    }
+
+    function applyAdjustments() {
+        const subtotal = getSubtotal();
+
+        const dRaw = parseFloat(document.getElementById('manualDiscountInput').value);
+        const mRaw = parseFloat(document.getElementById('markupInput').value);
+
+        // Discount
+        appliedDiscount = null;
+        if (!isNaN(dRaw) && dRaw > 0) {
+            if (manualDiscountUnit === 'pct') {
+                if (dRaw > 100) { showToast('Discount % cannot exceed 100%', 'error'); return; }
+                appliedDiscount = { type: 'percentage', value: dRaw, name: `${dRaw}% off` };
+            } else {
+                if (dRaw > subtotal) { showToast('Discount cannot exceed subtotal', 'error'); return; }
+                appliedDiscount = { type: 'fixed', value: dRaw, name: `${formatCurrency(dRaw)} off` };
+            }
+        }
+
+        // Markup
+        appliedMarkup = null;
+        if (!isNaN(mRaw) && mRaw > 0) {
+            if (markupUnit === 'pct') {
+                appliedMarkup = { type: 'percentage', value: mRaw, name: `+${mRaw}%` };
+            } else {
+                appliedMarkup = { type: 'fixed', value: mRaw, name: `+${formatCurrency(mRaw)}` };
+            }
+        }
 
         renderCart();
         closeModal('discountModal');
-        showToast(`Discount applied: ${d.name}`, 'success');
+
+        const parts = [];
+        if (appliedDiscount) parts.push('Discount applied');
+        if (appliedMarkup) parts.push('Price increase applied');
+        showToast(parts.join(' · ') || 'No changes', parts.length ? 'success' : 'info');
     }
 
     function removeDiscount() {
@@ -1035,75 +1084,10 @@
         showToast('Discount removed', 'info');
     }
 
-    // ---- Manual discount ----
-    function setDiscountUnit(unit) {
-        manualDiscountUnit = unit;
-        document.getElementById('segKsh').classList.toggle('active', unit === 'ksh');
-        document.getElementById('segPct').classList.toggle('active', unit === 'pct');
-        updateManualPreview();
-    }
-
-    function updateManualPreview() {
-        const input = document.getElementById('manualDiscountInput');
-        const preview = document.getElementById('manualPreview');
-        const raw = parseFloat(input.value);
-
-        if (isNaN(raw) || raw <= 0) {
-            preview.innerHTML = '<div class="row"><span>Enter a discount to preview</span><span></span></div>';
-            return;
-        }
-
-        const subtotal = getSubtotal();
-        let amount = 0;
-        if (manualDiscountUnit === 'pct') {
-            if (raw > 100) {
-                preview.innerHTML = '<div class="row"><span class="red">Percentage cannot exceed 100%</span><span></span></div>';
-                return;
-            }
-            amount = Math.round(subtotal * (raw / 100));
-        } else {
-            if (raw > subtotal) {
-                preview.innerHTML = `<div class="row"><span class="red">Amount cannot exceed subtotal</span><span></span></div>`;
-                return;
-            }
-            amount = Math.round(raw);
-        }
-
-        const after = subtotal - amount;
-        preview.innerHTML = `
-            <div class="row"><span>Subtotal</span><span>${formatCurrency(subtotal)}</span></div>
-            <div class="row"><span>Discount</span><span class="red">− ${formatCurrency(amount)}</span></div>
-            <div class="row total"><span>New Total</span><span class="green">${formatCurrency(after)}</span></div>
-        `;
-    }
-
-    function applyManualDiscount() {
-        const raw = parseFloat(document.getElementById('manualDiscountInput').value);
-        const subtotal = getSubtotal();
-
-        if (isNaN(raw) || raw <= 0) {
-            showToast('Enter a discount value', 'error');
-            return;
-        }
-        if (manualDiscountUnit === 'pct') {
-            if (raw > 100) { showToast('Percentage cannot exceed 100%', 'error'); return; }
-            appliedDiscount = {
-                type: 'percentage',
-                value: raw,
-                name: `${raw}% manual`
-            };
-        } else {
-            if (raw > subtotal) { showToast('Amount cannot exceed subtotal', 'error'); return; }
-            appliedDiscount = {
-                type: 'fixed',
-                value: raw,
-                name: `${formatCurrency(raw)} manual`
-            };
-        }
-
+    function removeMarkup() {
+        appliedMarkup = null;
         renderCart();
-        closeModal('discountModal');
-        showToast(`Discount applied: ${appliedDiscount.name}`, 'success');
+        showToast('Price increase removed', 'info');
     }
 
     // ============================================
@@ -1143,27 +1127,44 @@
 
             if (deposit === 0) paymentStatus = 'pending';
             else if (deposit < total) paymentStatus = 'partial';
-            else paymentStatus = 'completed';   // paid in full immediately
+            else paymentStatus = 'completed';
         }
+
+        // ----------------------------------------------------------
+        // Build items: bake markup into unit_price, keep discount >= 0
+        // ----------------------------------------------------------
+        const subtotalBase = getSubtotal();
+        const discountAmount = getDiscountAmount();
+        const markupAmount = getMarkupAmount();
+
+        const itemsPayload = cart.map(c => {
+            const lineTotal = c.sell * c.qty;
+            const share = subtotalBase > 0 ? (lineTotal / subtotalBase) * markupAmount : 0;
+            const markupPerUnit = c.qty > 0 ? share / c.qty : 0;
+            const adjustedUnitPrice = c.sell + markupPerUnit;
+            return {
+                product_id: c.product_id,
+                quantity: c.qty,
+                unit_price: Math.round(adjustedUnitPrice * 100) / 100
+            };
+        });
 
         const payload = {
             branch_id: MAIN_BRANCH_ID,
-            customer_name: customer,
-            customer_phone: customerPhone || undefined,
+            customer_name: customer || 'Walk-in',
             payment_method: paymentMethod,
             payment_status: paymentStatus,
             paid_amount: finalPaidAmount,
-            due_date: finalDueDate,
-            discount: getDiscountAmount(),
+            discount: discountAmount,   // always >= 0
             tax: 0,
-            items: cart.map(c => ({
-                product_id: c.product_id,
-                quantity: c.qty,
-                unit_price: c.sell
-            }))
+            items: itemsPayload
         };
 
-        console.log('🧾 SALE PAYLOAD:', payload);
+        // Only attach optional fields when they have real values
+        if (customerPhone) payload.customer_phone = customerPhone;
+        if (finalDueDate)   payload.due_date = finalDueDate;
+
+        console.log('🧾 SALE PAYLOAD:', JSON.stringify(payload, null, 2));
 
         const btn = document.getElementById('completeSaleBtn');
         isSubmitting = true;
@@ -1203,6 +1204,7 @@
             // Reset UI
             cart = [];
             appliedDiscount = null;
+            appliedMarkup = null;
             renderCart();
             document.getElementById('customerName').value = '';
             document.getElementById('customerPhone').value = '';

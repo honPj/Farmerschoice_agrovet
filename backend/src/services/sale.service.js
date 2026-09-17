@@ -11,8 +11,8 @@ class SaleService {
             console.log('📂📂📂 createSale called 📂📂📂');
             console.log('📂 saleData:', JSON.stringify(saleData, null, 2));
             console.log('📂 userId:', userId);
-            
-                        const {
+
+            const {
                 branch_id,
                 customer_name = 'Walk-in',
                 customer_phone,
@@ -27,6 +27,7 @@ class SaleService {
                 notes,
                 metadata = {}
             } = saleData;
+
             // Get branch ID (use provided or get default)
             let branchId = branch_id;
             if (!branchId) {
@@ -45,40 +46,44 @@ class SaleService {
 
             console.log('📂 branchId:', branchId);
 
-            // Calculate totals
+            // ═══════════════════════════════════════════════════════════
+            // BATCHED: 2 queries total instead of 2 × items
+            // ═══════════════════════════════════════════════════════════
+            const productIds = items.map(i => i.product_id);
+
+            const { data: productsData, error: prodErr } = await supabase
+                .from('products')
+                .select('id, name, cost_price, selling_price, quantity')
+                .in('id', productIds);
+
+            if (prodErr) throw prodErr;
+
+            const productMap = {};
+            (productsData || []).forEach(p => { productMap[p.id] = p; });
+
+            const { data: inventoriesData, error: invErr } = await supabase
+                .from('branch_inventory')
+                .select('product_id, current_stock')
+                .eq('branch_id', branchId)
+                .in('product_id', productIds);
+
+            if (invErr) throw invErr;
+
+            const invMap = {};
+            (inventoriesData || []).forEach(i => { invMap[i.product_id] = i; });
+
+            // Validate + build processed items
             let subtotal = 0;
             let totalCost = 0;
             const processedItems = [];
 
-            // Process each item
             for (const item of items) {
-                console.log(`📂 Processing item: ${item.product_id}`);
-                
-                // Get product details
-                const { data: product, error: productError } = await supabase
-                    .from('products')
-                    .select('id, name, cost_price, selling_price, quantity')
-                    .eq('id', item.product_id)
-                    .single();
-
-                if (productError || !product) {
-                    console.error('❌ Product not found:', item.product_id);
+                const product = productMap[item.product_id];
+                if (!product) {
                     throw new Error(`Product not found: ${item.product_id}`);
                 }
 
-                console.log(`📂 Product found: ${product.name}`);
-
-                // Check stock
-                const { data: inventory, error: invError } = await supabase
-                    .from('branch_inventory')
-                    .select('current_stock')
-                    .eq('branch_id', branchId)
-                    .eq('product_id', item.product_id)
-                    .single();
-
-                const currentStock = inventory?.current_stock || 0;
-                console.log(`📂 Current stock: ${currentStock}`);
-
+                const currentStock = invMap[item.product_id]?.current_stock || 0;
                 if (currentStock < item.quantity) {
                     throw new Error(`Insufficient stock for ${product.name}. Available: ${currentStock}, Requested: ${item.quantity}`);
                 }
@@ -114,7 +119,7 @@ class SaleService {
             console.log('📂 Creating sale record...');
             const { data: sale, error: saleError } = await supabase
                 .from('sales')
-                                .insert([{
+                .insert([{
                     receipt_number: receiptNumber,
                     branch_id: branchId,
                     user_id: userId,
@@ -211,7 +216,7 @@ class SaleService {
     async getAllSales(filters = {}) {
         try {
             console.log('📂📂📂 getAllSales called 📂📂📂');
-            
+
             let query = supabase
                 .from('sales')
                 .select(`
@@ -238,27 +243,21 @@ class SaleService {
                 `)
                 .order('created_at', { ascending: false });
 
-            // Apply filters
             if (filters.start_date) {
                 query = query.gte('sale_date', filters.start_date);
             }
-
             if (filters.end_date) {
                 query = query.lte('sale_date', filters.end_date);
             }
-
             if (filters.payment_method) {
                 query = query.eq('payment_method', filters.payment_method);
             }
-
             if (filters.payment_status) {
                 query = query.eq('payment_status', filters.payment_status);
             }
-
             if (filters.branch_id) {
                 query = query.eq('branch_id', filters.branch_id);
             }
-
             if (filters.user_id) {
                 query = query.eq('user_id', filters.user_id);
             }
@@ -285,7 +284,7 @@ class SaleService {
     async getSaleById(saleId) {
         try {
             console.log(`📂📂📂 getSaleById called for: ${saleId}`);
-            
+
             const { data: sale, error } = await supabase
                 .from('sales')
                 .select(`
@@ -341,7 +340,7 @@ class SaleService {
     async getSaleByReceipt(receiptNumber) {
         try {
             console.log(`📂📂📂 getSaleByReceipt called for: ${receiptNumber}`);
-            
+
             const { data: sale, error } = await supabase
                 .from('sales')
                 .select(`
@@ -391,13 +390,13 @@ class SaleService {
         try {
             console.log('📂📂📂 getTodaySales called 📂📂📂');
             console.log('📂 branchId:', branchId);
-            
+
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const todayStr = today.toISOString();
             console.log('📂 today:', todayStr);
 
-                        let query = supabase
+            let query = supabase
                 .from('sales')
                 .select(`
                     *,
@@ -426,15 +425,11 @@ class SaleService {
 
             if (error) {
                 console.error('❌ getTodaySales error:', error);
-                console.error('❌ Error code:', error.code);
-                console.error('❌ Error message:', error.message);
-                console.error('❌ Error details:', error.details);
                 throw error;
             }
 
             console.log(`📂 Found ${data?.length || 0} sales today`);
 
-            // Calculate totals
             const totalRevenue = data.reduce((sum, sale) => sum + (sale.total || 0), 0);
             const totalTransactions = data.length;
 
@@ -446,7 +441,6 @@ class SaleService {
             };
         } catch (error) {
             console.error('🔥 getTodaySales error:', error);
-            console.error('🔥 Stack:', error.stack);
             logger.error(`Get today's sales error: ${error.message}`);
             throw error;
         }
@@ -458,7 +452,7 @@ class SaleService {
     async getSalesByPaymentMethod(paymentMethod, filters = {}) {
         try {
             console.log(`📂📂📂 getSalesByPaymentMethod called for: ${paymentMethod}`);
-            
+
             let query = supabase
                 .from('sales')
                 .select('*')
@@ -468,7 +462,6 @@ class SaleService {
             if (filters.start_date) {
                 query = query.gte('sale_date', filters.start_date);
             }
-
             if (filters.end_date) {
                 query = query.lte('sale_date', filters.end_date);
             }
@@ -501,7 +494,7 @@ class SaleService {
     async getCreditSales() {
         try {
             console.log('📂📂📂 getCreditSales called 📂📂📂');
-            
+
             const { data, error } = await supabase
                 .from('sales')
                 .select(`
@@ -517,15 +510,12 @@ class SaleService {
                         total_price
                     )
                 `)
-                                .eq('payment_method', 'Credit')
+                .eq('payment_method', 'Credit')
                 .in('payment_status', ['pending', 'partial'])
                 .order('due_date', { ascending: true, nullsFirst: false });
 
             if (error) {
                 console.error('❌ getCreditSales error:', error);
-                console.error('❌ Error code:', error.code);
-                console.error('❌ Error message:', error.message);
-                console.error('❌ Error details:', error.details);
                 throw error;
             }
 
@@ -540,7 +530,6 @@ class SaleService {
             };
         } catch (error) {
             console.error('🔥 getCreditSales error:', error);
-            console.error('🔥 Stack:', error.stack);
             logger.error(`Get credit sales error: ${error.message}`);
             throw error;
         }
@@ -552,10 +541,9 @@ class SaleService {
     async processReturn(saleId, returnData, userId) {
         try {
             console.log(`📂📂📂 processReturn called for: ${saleId}`);
-            
+
             const { items, reason } = returnData;
 
-            // Get the original sale
             const sale = await this.getSaleById(saleId);
             if (!sale) {
                 throw new Error('Sale not found');
@@ -568,7 +556,6 @@ class SaleService {
             let totalRefund = 0;
             const refundedItems = [];
 
-            // Process each returned item
             for (const returnItem of items) {
                 const saleItem = sale.sale_items.find(
                     item => item.id === returnItem.sale_item_id
@@ -593,7 +580,6 @@ class SaleService {
                     refund_amount: refundAmount
                 });
 
-                // Restock the product
                 await supabase.rpc('update_stock', {
                     p_branch_id: sale.branch_id,
                     p_product_id: saleItem.product_id,
@@ -604,7 +590,6 @@ class SaleService {
                 });
             }
 
-            // Update sale status
             const { data: updatedSale, error: updateError } = await supabase
                 .from('sales')
                 .update({
@@ -640,12 +625,11 @@ class SaleService {
     async updateDailySummary(branchId) {
         try {
             console.log(`📂 updateDailySummary called for branch: ${branchId}`);
-            
+
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const todayStr = today.toISOString().split('T')[0];
 
-            // Calculate daily totals
             const { data: sales, error } = await supabase
                 .from('sales')
                 .select('total, subtotal, discount, tax')
@@ -661,7 +645,6 @@ class SaleService {
             const totalRevenue = sales.reduce((sum, sale) => sum + sale.total, 0);
             const totalTransactions = sales.length;
 
-            // Upsert daily summary
             const { error: upsertError } = await supabase
                 .from('daily_sales_summary')
                 .upsert({
@@ -694,7 +677,7 @@ class SaleService {
         try {
             console.log('📂📂📂 getSalesSummary called 📂📂📂');
             console.log('📂 filters:', filters);
-            
+
             let query = supabase
                 .from('sales')
                 .select('*')
@@ -703,11 +686,9 @@ class SaleService {
             if (filters.start_date) {
                 query = query.gte('sale_date', filters.start_date);
             }
-
             if (filters.end_date) {
                 query = query.lte('sale_date', filters.end_date);
             }
-
             if (filters.branch_id) {
                 query = query.eq('branch_id', filters.branch_id);
             }
@@ -717,9 +698,6 @@ class SaleService {
 
             if (error) {
                 console.error('❌ getSalesSummary error:', error);
-                console.error('❌ Error code:', error.code);
-                console.error('❌ Error message:', error.message);
-                console.error('❌ Error details:', error.details);
                 throw error;
             }
 
@@ -738,7 +716,6 @@ class SaleService {
             };
         } catch (error) {
             console.error('🔥 getSalesSummary error:', error);
-            console.error('🔥 Stack:', error.stack);
             logger.error(`Get sales summary error: ${error.message}`);
             throw error;
         }

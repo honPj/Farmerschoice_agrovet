@@ -3,7 +3,7 @@ import logger from '../utils/logger.js';
 
 class ProductService {
     /**
-     * Get all products with inventory
+     * Get all products with inventory (batched — no N+1)
      */
     async getAllProducts(filters = {}) {
         try {
@@ -18,72 +18,70 @@ class ProductService {
                     )
                 `);
 
-            // Apply filters
             if (filters.category_id) {
                 query = query.eq('category_id', filters.category_id);
             }
-
             if (filters.is_active !== undefined) {
                 query = query.eq('is_active', filters.is_active);
             }
-
             if (filters.min_price) {
                 query = query.gte('selling_price', filters.min_price);
             }
-
             if (filters.max_price) {
                 query = query.lte('selling_price', filters.max_price);
             }
 
-            // Get products
             const { data: products, error } = await query
                 .order('name', { ascending: true });
 
             if (error) throw error;
+            if (!products || products.length === 0) return [];
 
-            // Get inventory for each product
-            const productsWithInventory = await Promise.all(
-                products.map(async (product) => {
-                    const { data: inventory, error: invError } = await supabase
-                        .from('branch_inventory')
-                        .select(`
-                            id,
-                            branch_id,
-                            current_stock,
-                            min_stock_level,
-                            max_stock_level,
-                            cost_price,
-                            selling_price,
-                            location_in_store,
-                            last_restock_date,
-                            branch:branch_id (
-                                id,
-                                name,
-                                location
-                            )
-                        `)
-                        .eq('product_id', product.id);
+            // ─── ONE batched inventory query for all products ───
+            const productIds = products.map(p => p.id);
 
-                    if (invError) {
-                        logger.warn(`Failed to get inventory for product ${product.id}:`, invError);
-                        return {
-                            ...product,
-                            inventory: [],
-                            total_stock: 0
-                        };
-                    }
+            const { data: allInventory, error: invError } = await supabase
+                .from('branch_inventory')
+                .select(`
+                    id,
+                    branch_id,
+                    product_id,
+                    current_stock,
+                    min_stock_level,
+                    max_stock_level,
+                    cost_price,
+                    selling_price,
+                    location_in_store,
+                    last_restock_date,
+                    branch:branch_id (
+                        id,
+                        name,
+                        location
+                    )
+                `)
+                .in('product_id', productIds);
 
-                    const totalStock = inventory.reduce((sum, item) => sum + (item.current_stock || 0), 0);
+            if (invError) {
+                logger.warn('Batch inventory fetch failed:', invError);
+            }
 
-                    return {
-                        ...product,
-                        inventory: inventory || [],
-                        total_stock: totalStock
-                    };
-                })
-            );
+            // ─── Group inventory by product_id ───
+            const invByProduct = {};
+            (allInventory || []).forEach(inv => {
+                if (!invByProduct[inv.product_id]) invByProduct[inv.product_id] = [];
+                invByProduct[inv.product_id].push(inv);
+            });
 
-            return productsWithInventory;
+            // ─── Attach inventory + total_stock to each product ───
+            return products.map(product => {
+                const inventory = invByProduct[product.id] || [];
+                const totalStock = inventory.reduce((sum, item) => sum + (item.current_stock || 0), 0);
+                return {
+                    ...product,
+                    inventory,
+                    total_stock: totalStock
+                };
+            });
         } catch (error) {
             logger.error(`Get all products error: ${error.message}`);
             throw error;
@@ -95,7 +93,6 @@ class ProductService {
      */
     async getProductById(productId) {
         try {
-            // Get product
             const { data: product, error } = await supabase
                 .from('products')
                 .select(`
@@ -111,12 +108,11 @@ class ProductService {
 
             if (error) {
                 if (error.code === 'PGRST116') {
-                    return null; // Product not found
+                    return null;
                 }
                 throw error;
             }
 
-            // Get inventory for this product
             const { data: inventory, error: invError } = await supabase
                 .from('branch_inventory')
                 .select(`
@@ -157,7 +153,7 @@ class ProductService {
      */
     async createProduct(productData) {
         try {
-            const { 
+            const {
                 name,
                 category_id,
                 sku,
@@ -170,13 +166,9 @@ class ProductService {
                 is_active = true
             } = productData;
 
-            // Generate SKU if not provided
             const finalSku = sku || `SKU-${Date.now().toString().slice(-8)}-${Math.floor(Math.random() * 1000)}`;
-
-            // Get organization ID (use the default one from your schema)
             const orgId = '11111111-1111-1111-1111-111111111111';
 
-            // Create product
             const { data: product, error } = await supabase
                 .from('products')
                 .insert([{
@@ -197,9 +189,7 @@ class ProductService {
 
             if (error) throw error;
 
-            // If quantity > 0, create initial inventory record
             if (quantity > 0) {
-                // Get first branch (Main Branch from your schema)
                 const branchId = '22222222-2222-2222-2222-222222222222';
 
                 await supabase
@@ -224,6 +214,7 @@ class ProductService {
 
     /**
      * Update a product
+     * Also syncs cost/selling price + quantity to branch_inventory
      */
     async updateProduct(productId, updates) {
         try {
@@ -236,9 +227,21 @@ class ProductService {
 
             if (error) {
                 if (error.code === 'PGRST116') {
-                    return null; // Product not found
+                    return null;
                 }
                 throw error;
+            }
+
+            // Sync inventory (cost, selling) if provided
+            const invUpdates = {};
+            if (updates.cost_price !== undefined)    invUpdates.cost_price = updates.cost_price;
+            if (updates.selling_price !== undefined) invUpdates.selling_price = updates.selling_price;
+
+            if (Object.keys(invUpdates).length > 0) {
+                await supabase
+                    .from('branch_inventory')
+                    .update(invUpdates)
+                    .eq('product_id', productId);
             }
 
             return product;
@@ -279,26 +282,50 @@ class ProductService {
      */
     async hardDeleteProduct(productId) {
         try {
-            // First delete inventory records
-            await supabase
+            const { data: product, error: fetchError } = await supabase
+                .from('products')
+                .select('*')
+                .eq('id', productId)
+                .single();
+
+            if (fetchError) {
+                if (fetchError.code === 'PGRST116') return null;
+                throw fetchError;
+            }
+
+            // Detach sale_items to avoid FK block — sale history is preserved
+            const { error: detachError } = await supabase
+                .from('sale_items')
+                .update({ product_id: null })
+                .eq('product_id', productId);
+
+            if (detachError) {
+                logger.warn(`Could not detach sale_items for ${productId}: ${detachError.message}`);
+            }
+
+            // Delete branch_inventory rows
+            const { error: invError } = await supabase
                 .from('branch_inventory')
                 .delete()
                 .eq('product_id', productId);
 
-            // Then delete the product
-            const { data: product, error } = await supabase
+            if (invError) {
+                logger.warn(`Could not delete inventory for ${productId}: ${invError.message}`);
+            }
+
+            // Delete inventory_movements rows
+            await supabase
+                .from('inventory_movements')
+                .delete()
+                .eq('product_id', productId);
+
+            // Delete the product row
+            const { error: deleteError } = await supabase
                 .from('products')
                 .delete()
-                .eq('id', productId)
-                .select()
-                .single();
+                .eq('id', productId);
 
-            if (error) {
-                if (error.code === 'PGRST116') {
-                    return null;
-                }
-                throw error;
-            }
+            if (deleteError) throw deleteError;
 
             return product;
         } catch (error) {
@@ -326,7 +353,6 @@ class ProductService {
             if (filters.category_id) {
                 supabaseQuery = supabaseQuery.eq('category_id', filters.category_id);
             }
-
             if (filters.is_active !== undefined) {
                 supabaseQuery = supabaseQuery.eq('is_active', filters.is_active);
             }
@@ -385,11 +411,9 @@ class ProductService {
 
     /**
      * Update product stock
-     * Uses the update_stock function from your schema
      */
     async updateStock(branchId, productId, quantity, movementType, userId, referenceId = null) {
         try {
-            // Call the update_stock function
             const { data, error } = await supabase.rpc('update_stock', {
                 p_branch_id: branchId,
                 p_product_id: productId,
@@ -408,12 +432,12 @@ class ProductService {
     }
 
     /**
-     * Get product categories - FIXED VERSION
+     * Get product categories
      */
     async getCategories() {
         try {
             logger.info('📂 Fetching product categories from service...');
-            
+
             const { data, error } = await supabase
                 .from('product_categories')
                 .select('*')
@@ -421,35 +445,42 @@ class ProductService {
 
             if (error) {
                 logger.error('📂 Categories query error:', error);
-                logger.error('📂 Error code:', error.code);
-                logger.error('📂 Error message:', error.message);
-                logger.error('📂 Error details:', error.details);
-                
-                // Return empty array instead of throwing
                 return [];
             }
-            
+
             logger.info(`📂 Found ${data?.length || 0} categories`);
             return data || [];
         } catch (error) {
             logger.error('📂 Get categories error:', error);
-            logger.error('📂 Error stack:', error.stack);
-            // Return empty array to prevent crashing
             return [];
         }
     }
 
     /**
-     * Create a category
+     * Create a single category (with case-insensitive dedupe)
      */
     async createCategory(categoryData) {
         try {
-            const { name, parent_category_id, description } = categoryData;
+            const { name, parent_category_id = null, description = null } = categoryData;
+
+            if (!name || name.trim().length < 2) {
+                throw new Error('Category name must be at least 2 characters');
+            }
+
+            const { data: existing } = await supabase
+                .from('product_categories')
+                .select('id, name')
+                .ilike('name', name.trim())
+                .maybeSingle();
+
+            if (existing) {
+                return existing;
+            }
 
             const { data, error } = await supabase
                 .from('product_categories')
                 .insert([{
-                    name,
+                    name: name.trim(),
                     parent_category_id: parent_category_id || null,
                     description: description || null
                 }])
@@ -459,7 +490,7 @@ class ProductService {
             if (error) throw error;
             return data;
         } catch (error) {
-            logger.error(`Create category error: ${error.message}`);
+            logger.error(`createCategory error: ${error.message}`);
             throw error;
         }
     }
@@ -545,68 +576,21 @@ class ProductService {
             throw error;
         }
     }
-        /**
-     * Create a single category
-     */
-    async createCategory(categoryData) {
-        try {
-            const { name, parent_category_id = null, description = null } = categoryData;
-
-            if (!name || name.trim().length < 2) {
-                throw new Error('Category name must be at least 2 characters');
-            }
-
-            // Duplicate check (case-insensitive)
-            const { data: existing } = await supabase
-                .from('product_categories')
-                .select('id, name')
-                .ilike('name', name.trim())
-                .maybeSingle();
-
-            if (existing) {
-                return existing; // return existing — not an error
-            }
-
-            const { data, error } = await supabase
-                .from('product_categories')
-                .insert([{
-                    name: name.trim(),
-                    parent_category_id: parent_category_id || null,
-                    description: description || null
-                }])
-                .select()
-                .single();
-
-            if (error) throw error;
-            return data;
-        } catch (error) {
-            logger.error(`createCategory error: ${error.message}`);
-            throw error;
-        }
-    }
 
     /**
      * Bulk create products
-     * Order:
-     *   1. Create any new categories first (dedupe by name)
-     *   2. Map all rows to their resolved category_id
-     *   3. Insert products
-     *   4. Insert branch_inventory rows
-     * Returns summary with created products
      */
     async bulkCreateProducts(products, newCategories = [], userId = null) {
         try {
             const MAIN_BRANCH_ID = '22222222-2222-2222-2222-222222222222';
             const ORG_ID = '11111111-1111-1111-1111-111111111111';
 
-            // ─── Step 1: Create new categories (dedupe by name) ───
             const createdCategories = {};
             for (const catName of newCategories) {
                 if (!catName || !catName.trim()) continue;
                 const key = catName.trim().toLowerCase();
                 if (createdCategories[key]) continue;
 
-                // Check if it already exists first (case-insensitive)
                 const { data: existing } = await supabase
                     .from('product_categories')
                     .select('id, name')
@@ -631,9 +615,7 @@ class ProductService {
                 createdCategories[key] = created;
             }
 
-            // ─── Step 2: Insert products ───
             const productRows = products.map(p => {
-                // Resolve category: either an existing UUID, a "new:" prefixed name, or null
                 let categoryId = null;
                 if (p.category_id && String(p.category_id).startsWith('new:')) {
                     const nm = String(p.category_id).slice(4).trim().toLowerCase();
@@ -642,7 +624,6 @@ class ProductService {
                     categoryId = p.category_id;
                 }
 
-                // Fallback SKU if none provided
                 const sku = p.sku || `SKU-${Date.now()}-${Math.floor(Math.random() * 9000) + 1000}`;
 
                 return {
@@ -667,7 +648,6 @@ class ProductService {
 
             if (prodErr) throw prodErr;
 
-            // ─── Step 3: Create branch_inventory rows for products with qty > 0 ───
             const inventoryRows = [];
             products.forEach((p, idx) => {
                 const qty = Number(p.quantity) || 0;
@@ -694,7 +674,6 @@ class ProductService {
                 }
             }
 
-            // ─── Step 4: Build summary ───
             const totals = {
                 products_created: createdProducts.length,
                 categories_created: Object.keys(createdCategories).length,

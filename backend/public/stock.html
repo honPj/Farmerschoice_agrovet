@@ -33,6 +33,7 @@
             margin: 10px 0;
             display: flex; justify-content: space-between; align-items: center;
             gap: 12px;
+            flex-wrap: wrap;
         }
 
         .sku-cell { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
@@ -55,7 +56,6 @@
             min-width: 180px; outline: none;
         }
 
-        /* Action header labels */
         .action-header {
             display: block;
             text-align: center;
@@ -67,9 +67,37 @@
             padding: 4px 8px;
         }
 
-        /* ========================================== */
-        /* BULK IMPORT MODAL                          */
-        /* ========================================== */
+        .table-wrapper { overflow-x: auto; }
+        .stock-cards { display: none; }
+
+        .load-more-wrap {
+            display: flex;
+            justify-content: center;
+            padding: 16px;
+        }
+        .load-more-btn {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px 20px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            cursor: pointer;
+            font-family: var(--font-family);
+            transition: all 0.15s;
+        }
+        .load-more-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+        .load-status {
+            text-align: center;
+            font-size: 12px;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            padding: 8px;
+        }
+
         #bulkImportModal .modal {
             max-width: 1400px;
             width: 97%;
@@ -246,8 +274,101 @@
         }
 
         @media (max-width: 768px) {
-            #stockActionsCol { display: none !important; }
-            #bulkImportModal .modal { max-width: 100%; width: 100%; max-height: 100vh; border-radius: 0; }
+            .table-wrapper { display: none; }
+            .stock-cards { display: block; }
+
+            .filters-bar { flex-direction: column; }
+            .filters-bar .search-input,
+            .filters-bar select { width: 100%; min-width: 0; }
+
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start !important;
+                gap: 10px;
+            }
+
+            #bulkImportModal .modal {
+                max-width: 100%;
+                width: 100%;
+                max-height: 100vh;
+                border-radius: 0;
+            }
+
+            .bulk-totals { gap: 10px; font-size: 11px; }
+            .bulk-footer { padding: 10px 12px; }
+        }
+
+        .stock-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 12px 14px;
+            margin-bottom: 10px;
+        }
+        .stock-card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+        .stock-card-name {
+            font-weight: 600;
+            font-size: 15px;
+            flex: 1;
+            min-width: 0;
+            word-break: break-word;
+        }
+        .stock-card-sku {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+        .stock-card-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px 12px;
+            font-size: 13px;
+            margin-bottom: 10px;
+        }
+        .stock-card-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+        }
+        .stock-card-row span:first-child {
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+        .stock-card-row span:last-child {
+            font-family: var(--font-mono);
+            font-weight: 500;
+        }
+        .stock-card-actions {
+            display: flex;
+            gap: 6px;
+            padding-top: 8px;
+            border-top: 1px solid var(--border-color);
+        }
+        .stock-card-actions button {
+            flex: 1;
+            padding: 8px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+            background: var(--bg-surface);
+            color: var(--text-primary);
+            font-size: 12px;
+            cursor: pointer;
+            font-family: var(--font-family);
+        }
+        .stock-card-actions button:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+        .stock-card-actions button.danger:hover {
+            border-color: var(--red);
+            color: var(--red);
         }
     </style>
 </head>
@@ -297,15 +418,16 @@
         </div>
 
         <div class="filters-bar">
-            <input type="text" id="stockSearch" class="search-input" placeholder="Search by name or SKU..." oninput="renderStock()" />
-            <select id="categoryFilter" title="Filter by category" aria-label="Filter by category" onchange="renderStock()">
+            <input type="text" id="stockSearch" class="search-input" placeholder="Search by name or SKU..." oninput="onSearchInput()" />
+            <select id="categoryFilter" title="Filter by category" aria-label="Filter by category" onchange="onFilterChange()">
                 <option value="">All Categories</option>
             </select>
-            <button class="btn-ghost btn-sm" onclick="loadProducts()" title="Refresh from server">🔄 Refresh</button>
+            <button class="btn-ghost btn-sm" onclick="loadProducts(true)" title="Refresh from server">🔄 Refresh</button>
         </div>
 
         <div id="errorArea"></div>
 
+        <!-- Desktop table -->
         <div class="table-wrapper">
             <table>
                 <thead>
@@ -336,6 +458,15 @@
                     </tr>
                 </tbody>
             </table>
+        </div>
+
+        <!-- Mobile cards -->
+        <div class="stock-cards" id="stockCards"></div>
+
+        <!-- Lazy load controls -->
+        <div class="load-status" id="loadStatus"></div>
+        <div class="load-more-wrap" id="loadMoreWrap" style="display:none;">
+            <button class="load-more-btn" onclick="loadMore()" id="loadMoreBtn">Load More</button>
         </div>
     </div>
 
@@ -485,6 +616,17 @@
     const MAIN_BRANCH_ID = '22222222-2222-2222-2222-222222222222';
     const MAX_BULK_ROWS = 40;
 
+    // Lazy-loading state
+    let filteredList = [];
+    let renderedCount = 0;
+    const PAGE_SIZE = 60;
+
+    // ─── Low-stock email dedupe ───
+    // Prevents spamming the owner with repeated alerts for the same state.
+    // The signature changes when the set of out/low products changes.
+    const LOW_STOCK_KEY = 'fc_low_stock_signature';
+    const LOW_STOCK_COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6 hours
+
     // ============================================
     // HELPERS
     // ============================================
@@ -542,12 +684,137 @@
     }
 
     // ============================================
-    // RENDER STOCK TABLE
+    // EMAIL NOTIFICATION HELPERS
     // ============================================
-    function renderStock() {
+
+    /**
+     * Notify owner about a restock (single product).
+     * Fires and forgets — never blocks the UI.
+     */
+    function notifyRestockAsync(product, quantity) {
+        const user = getCurrentUser();
+        apiRequest('/notifications/restock', {
+            method: 'POST',
+            body: JSON.stringify({
+                product_id: product.id,
+                product_name: product.name,
+                sku: product.sku || null,
+                quantity_added: quantity,
+                new_stock: (Number(product.stock) || 0) + quantity,
+                branch_id: MAIN_BRANCH_ID,
+                performed_by: {
+                    id: user?.id || null,
+                    full_name: user?.full_name || user?.name || 'Unknown user',
+                    role: user?.role || 'employee'
+                }
+            })
+        }).catch(err => {
+            console.warn('Restock email notification failed:', err?.message || err);
+        });
+    }
+
+    /**
+     * Notify owner about low stock — sends ONE email per unique out/low
+     * state, then caches a signature for 6 hours so refreshes don't spam.
+     */
+    async function notifyLowStockIfNeeded() {
+        const out = products.filter(p => p.stock <= 0);
+        const low = products.filter(p => p.stock > 0 && p.stock <= p.minLevel);
+        if (!out.length && !low.length) return;
+        if (!hasPerm('stock.view')) return;
+
+        // Build a signature of the current state (sorted IDs, so order doesn't matter)
+        const signature = [
+            out.map(p => `out:${p.id}`).sort().join('|'),
+            low.map(p => `low:${p.id}`).sort().join('|')
+        ].join('::');
+
+        // Check cooldown
+        let cached = null;
+        try { cached = JSON.parse(localStorage.getItem(LOW_STOCK_KEY) || 'null'); } catch {}
+        const now = Date.now();
+        if (cached
+            && cached.signature === signature
+            && (now - (cached.at || 0)) < LOW_STOCK_COOLDOWN_MS) {
+            console.log('🦋 Low-stock email skipped (same state within cooldown)');
+            return;
+        }
+
+        // Save BEFORE the API call so concurrent triggers don't double-send
+        try {
+            localStorage.setItem(LOW_STOCK_KEY, JSON.stringify({
+                signature,
+                at: now
+            }));
+        } catch {}
+
+        const user = getCurrentUser();
+
+        try {
+            await apiRequest('/notifications/low-stock', {
+                method: 'POST',
+                body: JSON.stringify({
+                    branch_id: MAIN_BRANCH_ID,
+                    out_of_stock: out.map(p => ({
+                        id: p.id,
+                        name: p.name,
+                        sku: p.sku || null,
+                        stock: p.stock,
+                        min_level: p.minLevel
+                    })),
+                    low_stock: low.map(p => ({
+                        id: p.id,
+                        name: p.name,
+                        sku: p.sku || null,
+                        stock: p.stock,
+                        min_level: p.minLevel
+                    })),
+                    triggered_by: {
+                        id: user?.id || null,
+                        full_name: user?.full_name || user?.name || 'System',
+                        role: user?.role || 'employee'
+                    }
+                })
+            });
+            console.log('📧 Low-stock email sent to owner');
+        } catch (err) {
+            console.warn('Low-stock email notification failed:', err?.message || err);
+            // Roll back the cache so it retries next time
+            try { localStorage.removeItem(LOW_STOCK_KEY); } catch {}
+        }
+    }
+
+    // ============================================
+    // FILTER + LAZY RENDER
+    // ============================================
+    function onSearchInput() {
+        resetAndRender();
+    }
+
+    function onFilterChange() {
+        resetAndRender();
+    }
+
+    function resetAndRender() {
         const query = (document.getElementById('stockSearch').value || '').trim().toLowerCase();
         const catId = document.getElementById('categoryFilter').value;
 
+        filteredList = products.filter(p => {
+            if (!p.is_active) return false;
+            if (catId && p.category_id !== catId) return false;
+            if (query) {
+                const hit = p.name.toLowerCase().includes(query)
+                         || (p.sku || '').toLowerCase().includes(query);
+                if (!hit) return false;
+            }
+            return true;
+        });
+
+        renderedCount = 0;
+        renderStock();
+    }
+
+    function renderStock() {
         const canManage = hasPerm('stock.manage');
         const actionsCol = document.getElementById('stockActionsCol');
         actionsCol.style.display = canManage ? '' : 'none';
@@ -557,87 +824,196 @@
                <button class="btn-primary-solid btn-sm" onclick="openProductModal(null)" style="margin-left:8px;">+ Add Product</button>`
             : '';
 
-        let list = products;
-        if (catId) list = list.filter(p => p.category_id === catId);
-        if (query) {
-            list = list.filter(p =>
-                p.name.toLowerCase().includes(query) ||
-                (p.sku || '').toLowerCase().includes(query)
-            );
-        }
-
         const tbody = document.getElementById('stockBody');
+        const cardsWrap = document.getElementById('stockCards');
+        const loadStatus = document.getElementById('loadStatus');
+        const loadMoreWrap = document.getElementById('loadMoreWrap');
 
         if (products.length === 0) {
-            tbody.innerHTML = `
-                <tr><td colspan="11" style="text-align:center; padding:30px; color:var(--text-muted);">
-                    No products found. ${canManage ? 'Click "Add Product" or "Bulk Import" to create products.' : ''}
-                </td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; padding:30px; color:var(--text-muted);">
+                No products found. ${canManage ? 'Click "Add Product" or "Bulk Import" to create products.' : ''}
+            </td></tr>`;
+            cardsWrap.innerHTML = `<div class="empty-state" style="padding:30px;text-align:center;color:var(--text-muted);">
+                No products found. ${canManage ? 'Tap "Add Product" or "Bulk Import" to create products.' : ''}
+            </div>`;
+            loadStatus.textContent = '';
+            loadMoreWrap.style.display = 'none';
             return;
         }
-        if (list.length === 0) {
-            tbody.innerHTML = `
-                <tr><td colspan="11" style="text-align:center; padding:30px; color:var(--text-muted);">
-                    No products match your filters.
-                </td></tr>`;
+        if (filteredList.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; padding:30px; color:var(--text-muted);">
+                No products match your filters.
+            </td></tr>`;
+            cardsWrap.innerHTML = `<div class="empty-state" style="padding:30px;text-align:center;color:var(--text-muted);">
+                No products match your filters.
+            </div>`;
+            loadStatus.textContent = '';
+            loadMoreWrap.style.display = 'none';
             return;
         }
 
-        tbody.innerHTML = list.map(p => {
-            const status = p.stock <= 0 ? 'out' : p.stock <= p.minLevel ? 'low' : 'ok';
-            const statusClass = { ok: 'pill-green', low: 'pill-yellow', out: 'pill-red' }[status];
-            const statusText  = { ok: '✅ OK', low: '⚠️ Low', out: '❌ Out' }[status];
-            const margin = p.sell - p.buy;
+        if (renderedCount === 0) {
+            tbody.innerHTML = '';
+            cardsWrap.innerHTML = '';
+        }
 
-            return `<tr>
-                <td class="sku-cell">${escapeHtml(p.sku || '—')}</td>
-                <td><strong>${escapeHtml(p.name)}</strong></td>
-                <td><span class="cat-pill">${escapeHtml(p.category_name)}</span></td>
-                <td style="font-size:12px;color:var(--text-muted);">${escapeHtml(p.unit)}</td>
-                <td class="mono">${formatCurrency(p.buy)}</td>
-                <td class="mono">${formatCurrency(p.sell)}</td>
-                <td class="mono" style="color:${margin > 0 ? 'var(--green)' : 'var(--red)'};">${formatCurrency(margin)}</td>
-                <td class="mono"><strong>${p.stock}</strong></td>
-                <td><span class="pill ${statusClass}">${statusText}</span></td>
-                <td style="text-align:center;">${canManage ? `<button class="btn-ghost btn-sm" onclick="openRestock('${p.id}')" title="Restock">📦</button>` : '—'}</td>
-                <td style="text-align:center;">${canManage ? `<button class="btn-ghost btn-sm" onclick="openProductModal('${p.id}')" title="Edit">✏️</button>` : '—'}</td>
-                <td style="text-align:center;">${canManage ? `<button class="btn-danger btn-sm" onclick="removeProduct('${p.id}')" title="Delete">🗑️</button>` : '—'}</td>
-            </tr>`;
-        }).join('');
+        const nextSlice = filteredList.slice(renderedCount, renderedCount + PAGE_SIZE);
+        renderedCount += nextSlice.length;
+
+        tbody.insertAdjacentHTML('beforeend', nextSlice.map(rowHtml).join(''));
+        cardsWrap.insertAdjacentHTML('beforeend', nextSlice.map(cardHtml).join(''));
+
+        const total = filteredList.length;
+        loadStatus.textContent = `Showing ${renderedCount} of ${total} product${total === 1 ? '' : 's'}`;
+
+        if (renderedCount < total) {
+            loadMoreWrap.style.display = '';
+        } else {
+            loadMoreWrap.style.display = 'none';
+        }
+
+        const loadMoreBtn = document.getElementById('loadMoreBtn');
+        if (loadMoreBtn && renderedCount < total) {
+            loadMoreBtn.disabled = false;
+            loadMoreBtn.textContent = `Load More (${total - renderedCount} left)`;
+        }
+
+        maybeAutoLoad();
     }
+
+    function rowHtml(p) {
+        const canManage = hasPerm('stock.manage');
+        const status = p.stock <= 0 ? 'out' : p.stock <= p.minLevel ? 'low' : 'ok';
+        const statusClass = { ok: 'pill-green', low: 'pill-yellow', out: 'pill-red' }[status];
+        const statusText  = { ok: '✅ OK', low: '⚠️ Low', out: '❌ Out' }[status];
+        const margin = p.sell - p.buy;
+
+        return `<tr>
+            <td class="sku-cell">${escapeHtml(p.sku || '—')}</td>
+            <td><strong>${escapeHtml(p.name)}</strong></td>
+            <td><span class="cat-pill">${escapeHtml(p.category_name)}</span></td>
+            <td style="font-size:12px;color:var(--text-muted);">${escapeHtml(p.unit)}</td>
+            <td class="mono">${formatCurrency(p.buy)}</td>
+            <td class="mono">${formatCurrency(p.sell)}</td>
+            <td class="mono" style="color:${margin > 0 ? 'var(--green)' : 'var(--red)'};">${formatCurrency(margin)}</td>
+            <td class="mono"><strong>${p.stock}</strong></td>
+            <td><span class="pill ${statusClass}">${statusText}</span></td>
+            <td style="text-align:center;">${canManage ? `<button class="btn-ghost btn-sm" onclick="openRestock('${p.id}')" title="Restock">📦</button>` : '—'}</td>
+            <td style="text-align:center;">${canManage ? `<button class="btn-ghost btn-sm" onclick="openProductModal('${p.id}')" title="Edit">✏️</button>` : '—'}</td>
+            <td style="text-align:center;">${canManage ? `<button class="btn-danger btn-sm" onclick="removeProduct('${p.id}')" title="Delete">🗑️</button>` : '—'}</td>
+        </tr>`;
+    }
+
+    function cardHtml(p) {
+        const canManage = hasPerm('stock.manage');
+        const status = p.stock <= 0 ? 'out' : p.stock <= p.minLevel ? 'low' : 'ok';
+        const statusClass = { ok: 'pill-green', low: 'pill-yellow', out: 'pill-red' }[status];
+        const statusText  = { ok: '✅ OK', low: '⚠️ Low', out: '❌ Out' }[status];
+        const margin = p.sell - p.buy;
+
+        return `
+            <div class="stock-card">
+                <div class="stock-card-top">
+                    <div style="flex:1;min-width:0;">
+                        <div class="stock-card-name">${escapeHtml(p.name)}</div>
+                        <div class="stock-card-sku">${escapeHtml(p.sku || 'No SKU')}</div>
+                    </div>
+                    <span class="pill ${statusClass}">${statusText}</span>
+                </div>
+                <div class="stock-card-grid">
+                    <div class="stock-card-row"><span>Category</span><span>${escapeHtml(p.category_name)}</span></div>
+                    <div class="stock-card-row"><span>Unit</span><span>${escapeHtml(p.unit)}</span></div>
+                    <div class="stock-card-row"><span>Cost</span><span>${formatCurrency(p.buy)}</span></div>
+                    <div class="stock-card-row"><span>Sell</span><span>${formatCurrency(p.sell)}</span></div>
+                    <div class="stock-card-row"><span>Margin</span><span style="color:${margin > 0 ? 'var(--green)' : 'var(--red)'};">${formatCurrency(margin)}</span></div>
+                    <div class="stock-card-row"><span>Stock</span><span><strong>${p.stock}</strong></span></div>
+                </div>
+                ${canManage ? `
+                    <div class="stock-card-actions">
+                        <button onclick="openRestock('${p.id}')">📦 Restock</button>
+                        <button onclick="openProductModal('${p.id}')">✏️ Edit</button>
+                        <button class="danger" onclick="removeProduct('${p.id}')">🗑️ Delete</button>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    function loadMore() {
+        renderStock();
+    }
+
+    function maybeAutoLoad() {
+        if (renderedCount >= filteredList.length) return;
+        requestAnimationFrame(() => {
+            const loadMoreWrap = document.getElementById('loadMoreWrap');
+            if (!loadMoreWrap || loadMoreWrap.style.display === 'none') return;
+            const rect = loadMoreWrap.getBoundingClientRect();
+            const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+            if (rect.top < viewportHeight + 300) {
+                renderStock();
+            }
+        });
+    }
+
+    window.addEventListener('scroll', () => {
+        if (renderedCount >= filteredList.length) return;
+        const loadMoreWrap = document.getElementById('loadMoreWrap');
+        if (!loadMoreWrap || loadMoreWrap.style.display === 'none') return;
+        const rect = loadMoreWrap.getBoundingClientRect();
+        const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+        if (rect.top < viewportHeight + 200) {
+            renderStock();
+        }
+    }, { passive: true });
 
     // ============================================
     // LOAD
     // ============================================
-    async function loadProducts() {
+    async function loadProducts(force = false) {
         const tbody = document.getElementById('stockBody');
+        const cardsWrap = document.getElementById('stockCards');
         const errorArea = document.getElementById('errorArea');
         errorArea.innerHTML = '';
         tbody.innerHTML = `
             <tr><td colspan="11" style="text-align:center; padding:30px;">
                 <div class="loading-spinner">Loading products...</div>
             </td></tr>`;
+        cardsWrap.innerHTML = `
+            <div style="padding:30px;text-align:center;">
+                <div class="loading-spinner">Loading products...</div>
+            </div>`;
 
         try {
-            const [prods, cats] = await Promise.all([fetchProducts(), fetchCategories()]);
+            const [prods, cats] = await Promise.all([
+                fetchProducts({}, { force }),
+                fetchCategories({ force })
+            ]);
             rawProducts = prods;
-            products = prods.map(mapProductFromBackend);
+            products = prods
+                .map(mapProductFromBackend)
+                .filter(p => p.is_active);
             categories = cats || [];
 
             populateCategoryFilter();
             populateCategorySelect();
-            renderStock();
+            resetAndRender();
             showToast(`Loaded ${products.length} products`, 'success');
+
+            // Trigger low-stock email check after data is loaded
+            // (fire-and-forget, deduped)
+            setTimeout(() => { notifyLowStockIfNeeded(); }, 800);
         } catch (err) {
             console.error('loadProducts failed:', err);
             tbody.innerHTML = '';
+            cardsWrap.innerHTML = '';
             errorArea.innerHTML = `
                 <div class="error-banner">
                     <div>
                         <strong>Could not load products.</strong><br>
                         <span style="font-size:13px;">${escapeHtml(err.message || 'Unknown error')}</span>
                     </div>
-                    <button class="btn-ghost btn-sm" onclick="loadProducts()">Retry</button>
+                    <button class="btn-ghost btn-sm" onclick="loadProducts(true)">Retry</button>
                 </div>`;
             showToast('Failed to load products', 'error');
         }
@@ -726,14 +1102,16 @@
 
         try {
             if (editProductId) {
+                // Edit path — does not trigger an email (owner already has product)
                 await updateProduct(editProductId, payload);
                 showToast(window.CONFIG?.MESSAGES?.PRODUCT_UPDATED || 'Product updated!', 'success');
             } else {
+                // Add path — backend sends the owner notification email
                 await createProduct(payload);
                 showToast(window.CONFIG?.MESSAGES?.PRODUCT_ADDED || 'Product added! Owner notified by email.', 'success');
             }
             closeModal('productModal');
-            await loadProducts();
+            await loadProducts(true);
         } catch (err) {
             console.error('saveProduct failed:', err);
             showToast('Save failed: ' + err.message, 'error');
@@ -746,11 +1124,14 @@
     async function removeProduct(id) {
         const p = products.find(x => x.id === id);
         if (!p) return;
-        if (!confirm(`Delete "${p.name}"? This hides the product (soft delete).`)) return;
+        if (!confirm(`Delete "${p.name}" permanently? This cannot be undone.`)) return;
         try {
             await deleteProduct(id);
+            products = products.filter(x => x.id !== id);
+            filteredList = filteredList.filter(x => x.id !== id);
             showToast(window.CONFIG?.MESSAGES?.PRODUCT_DELETED || 'Product deleted.', 'info');
-            await loadProducts();
+            renderedCount = 0;
+            renderStock();
         } catch (err) {
             console.error('removeProduct failed:', err);
             showToast('Delete failed: ' + err.message, 'error');
@@ -758,7 +1139,7 @@
     }
 
     // ============================================
-    // RESTOCK
+    // RESTOCK  (with owner email notification)
     // ============================================
     function openRestock(id) {
         const p = products.find(x => x.id === id);
@@ -775,14 +1156,21 @@
         const qty = parseInt(document.getElementById('restockQty').value, 10);
         if (isNaN(qty) || qty < 1) { showToast('Enter a whole number ≥ 1.', 'error'); return; }
 
+        const product = products.find(x => x.id === restockId);
+        if (!product) { showToast('Product not found', 'error'); return; }
+
         const btn = document.getElementById('restockBtn');
         btn.disabled = true;
         btn.textContent = 'Adding...';
         try {
             await restockProduct(restockId, qty, MAIN_BRANCH_ID);
+
+            // ── Notify owner via email (fire-and-forget) ──
+            notifyRestockAsync(product, qty);
+
             showToast(window.CONFIG?.MESSAGES?.RESTOCK_SUCCESS || 'Stock updated!', 'success');
             closeModal('restockModal');
-            await loadProducts();
+            await loadProducts(true);
         } catch (err) {
             console.error('restock failed:', err);
             showToast('Restock failed: ' + err.message, 'error');
@@ -893,7 +1281,6 @@
         el.className = 'row-margin ' + (margin >= 0 ? 'positive' : 'negative');
     }
 
-    // Category dropdown: existing + any pending "new:" categories + "New category…"
     function getCategoryOptionsForRow(row) {
         const currentValue = row.category_id || '';
         const opts = ['<option value="">— Uncategorized —</option>'];
@@ -906,7 +1293,6 @@
             opts.push(`<option value="${c.id}" ${sel}>${escapeHtml(c.name)}</option>`);
         }
 
-        // Show any "new:" categories currently pending across all rows
         const pending = new Set();
         bulkRows.forEach(r => {
             if (r.category_id && String(r.category_id).startsWith('new:')) {
@@ -1007,7 +1393,6 @@
         document.getElementById('bulkRowCount').textContent =
             `${bulkRows.length} row${bulkRows.length === 1 ? '' : 's'} (max ${MAX_BULK_ROWS})`;
 
-        // Auto-focus new-cat input
         const newCatInput = document.querySelector('[data-bulk-newcat]');
         if (newCatInput && !newCatInput._focusedOnce) {
             newCatInput.focus();
@@ -1037,8 +1422,6 @@
             showToast('New category name must be at least 2 characters', 'error');
             return;
         }
-        // Commit to a "new:Name" sentinel and re-render — the dropdown
-        // will now show "➕ Name (new)" as the selected option
         row.category_id = `new:${name}`;
         row.new_cat_name = '';
         renderBulkTable();
@@ -1109,7 +1492,6 @@
             }
         }
 
-        // Build payload
         const newCategories = new Set();
         const productsPayload = filled.map(r => {
             let category_id = r.category_id || '';
@@ -1149,6 +1531,7 @@
             const created = summary.products_created || productsPayload.length;
             const cats = summary.categories_created || 0;
 
+            // The backend fires the bulk-import email automatically
             showToast(
                 `✅ ${created} product${created === 1 ? '' : 's'} added` +
                 (cats > 0 ? ` · ${cats} new categor${cats === 1 ? 'y' : 'ies'}` : '') +
@@ -1159,8 +1542,7 @@
             closeModal('bulkImportModal');
             bulkRows = [];
 
-            // Refresh everything so new categories appear everywhere
-            await loadProducts();
+            await loadProducts(true);
 
             console.log('✅ Categories after save:', categories.map(c => c.name));
         } catch (err) {
@@ -1173,7 +1555,7 @@
     }
 
     // ============================================
-    // LOW STOCK NOTIFY
+    // LOW STOCK NOTIFY (in-app toast, kept as-is)
     // ============================================
     function checkLowStockAndNotify() {
         const out = products.filter(p => p.stock <= 0);
@@ -1206,7 +1588,7 @@
         }
 
         document.getElementById('tabAll').style.display       = hasPerm('sales.view_all')  ? '' : 'none';
-         document.getElementById('tabCredits').style.display   = hasPerm('sales.view_all')  ? '' : 'none';
+        document.getElementById('tabCredits').style.display   = hasPerm('sales.view_all')  ? '' : 'none';
         document.getElementById('tabReports').style.display   = hasPerm('reports.view')    ? '' : 'none';
         document.getElementById('tabLive').style.display      = hasPerm('live.view')       ? '' : 'none';
         document.getElementById('tabAnalytics').style.display = hasPerm('analytics.view')  ? '' : 'none';
@@ -1214,7 +1596,14 @@
 
         updateUserChip();
         populateUnitSelect();
-        loadProducts().then(() => setTimeout(checkLowStockAndNotify, 1500));
+
+        // Initial load → then toast + email check
+        loadProducts(false).then(() => {
+            setTimeout(() => {
+                checkLowStockAndNotify();     // in-app toast
+                notifyLowStockIfNeeded();     // email to owner (deduped)
+            }, 1500);
+        });
 
         console.log('✅ Stock page ready');
     }

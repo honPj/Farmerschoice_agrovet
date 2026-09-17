@@ -10,6 +10,7 @@ import { supabase, testConnection } from './config/database.js';
 import { notFoundHandler, errorHandler } from './middleware/errorHandler.js';
 import { HTTP_STATUS } from './utils/constants.js';
 
+
 // Import routes
 import authRoutes from './routes/auth.js';
 import productRoutes from './routes/products.js';
@@ -37,6 +38,21 @@ const PORT = process.env.PORT || 5000;
 // ============================================
 // MIDDLEWARE
 // ============================================
+
+// ────────────────────────────────────────────
+// RESPONSE TIME LOGGER
+// ────────────────────────────────────────────
+// Must come AFTER `app` is created. Flags any request > 500ms.
+app.use((req, res, next) => {
+    const start = Date.now();
+    res.on('finish', () => {
+        const ms = Date.now() - start;
+        if (ms > 500) {
+            console.warn(`⚠️  SLOW ${req.method} ${req.originalUrl} — ${ms}ms`);
+        }
+    });
+    next();
+});
 
 // ────────────────────────────────────────────
 // CORS CONFIGURATION

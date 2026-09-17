@@ -13,25 +13,16 @@ const router = express.Router();
 // 🔓 PUBLIC ROUTES - NO AUTH REQUIRED
 // ═══════════════════════════════════════════════════════════════
 
-/**
- * @route   GET /api/v1/products/public-test
- * @desc    Public test route - NO AUTH
- * @access  Public
- */
 router.get('/public-test', async (req, res) => {
     try {
         console.log('🔍🔍🔍 PUBLIC TEST ROUTE CALLED 🔍🔍🔍');
-        
+
         const { data, error } = await supabase
             .from('product_categories')
             .select('*')
             .order('name', { ascending: true });
 
         if (error) {
-            console.error('❌❌❌ SUPABASE ERROR ❌❌❌');
-            console.error('Error code:', error.code);
-            console.error('Error message:', error.message);
-            
             return res.status(200).json({
                 success: false,
                 error: {
@@ -42,15 +33,12 @@ router.get('/public-test', async (req, res) => {
             });
         }
 
-        console.log(`✅✅✅ SUCCESS! Found ${data?.length || 0} categories ✅✅✅`);
         return res.status(200).json({
             success: true,
             count: data?.length || 0,
             data: data || []
         });
     } catch (error) {
-        console.error('🔥🔥🔥 CATCH ERROR 🔥🔥🔥');
-        console.error('Error:', error);
         return res.status(200).json({
             success: false,
             error: {
@@ -65,24 +53,14 @@ router.get('/public-test', async (req, res) => {
 // 🔒 PROTECTED ROUTES - AUTH REQUIRED
 // ═══════════════════════════════════════════════════════════════
 
-/**
- * @route   GET /api/v1/products/get-categories
- * @desc    Get all categories (FIXED - new path)
- * @access  Private
- */
 router.get('/get-categories', verifyToken, async (req, res) => {
     try {
-        console.log('📂📂📂 GET-CATEGORIES ROUTE CALLED 📂📂📂');
-        console.log('📂 User ID:', req.user?.id);
-        console.log('📂 User Role:', req.user?.role);
-        
         const { data, error } = await supabase
             .from('product_categories')
             .select('*')
             .order('name', { ascending: true });
 
         if (error) {
-            console.error('📂 Supabase error:', error);
             return res.status(200).json({
                 success: false,
                 error: {
@@ -93,15 +71,12 @@ router.get('/get-categories', verifyToken, async (req, res) => {
             });
         }
 
-        console.log(`📂 Found ${data?.length || 0} categories`);
-        
         return res.status(200).json({
             success: true,
             count: data?.length || 0,
             data: data || []
         });
     } catch (error) {
-        console.error('📂 Categories error:', error);
         return res.status(200).json({
             success: false,
             error: {
@@ -112,11 +87,6 @@ router.get('/get-categories', verifyToken, async (req, res) => {
     }
 });
 
-/**
- * @route   GET /api/v1/products
- * @desc    Get all products with inventory
- * @access  Private
- */
 router.get('/', verifyToken, async (req, res, next) => {
     try {
         const filters = {
@@ -127,7 +97,7 @@ router.get('/', verifyToken, async (req, res, next) => {
         };
 
         const products = await productService.getAllProducts(filters);
-        
+
         res.status(HTTP_STATUS.OK).json({
             success: true,
             count: products.length,
@@ -139,11 +109,6 @@ router.get('/', verifyToken, async (req, res, next) => {
     }
 });
 
-/**
- * @route   GET /api/v1/products/search
- * @desc    Search products
- * @access  Private
- */
 router.get('/search', verifyToken, async (req, res, next) => {
     try {
         const { error, value } = searchSchema.validate(req.query);
@@ -163,7 +128,7 @@ router.get('/search', verifyToken, async (req, res, next) => {
         };
 
         const products = await productService.searchProducts(value.q, filters);
-        
+
         res.status(HTTP_STATUS.OK).json({
             success: true,
             count: products.length,
@@ -175,16 +140,11 @@ router.get('/search', verifyToken, async (req, res, next) => {
     }
 });
 
-/**
- * @route   GET /api/v1/products/low-stock
- * @desc    Get low stock products
- * @access  Private (Manager+)
- */
 router.get('/low-stock', verifyToken, requireRoles(['owner', 'manager']), async (req, res, next) => {
     try {
         const threshold = req.query.threshold ? parseInt(req.query.threshold) : 5;
         const products = await productService.getLowStockProducts(threshold);
-        
+
         res.status(HTTP_STATUS.OK).json({
             success: true,
             count: products.length,
@@ -196,15 +156,10 @@ router.get('/low-stock', verifyToken, requireRoles(['owner', 'manager']), async 
     }
 });
 
-/**
- * @route   GET /api/v1/products/sku/:sku
- * @desc    Get product by SKU
- * @access  Private
- */
 router.get('/sku/:sku', verifyToken, async (req, res, next) => {
     try {
         const product = await productService.getProductBySku(req.params.sku);
-        
+
         if (!product) {
             return res.status(HTTP_STATUS.NOT_FOUND).json({
                 success: false,
@@ -213,7 +168,7 @@ router.get('/sku/:sku', verifyToken, async (req, res, next) => {
                 }
             });
         }
-        
+
         res.status(HTTP_STATUS.OK).json({
             success: true,
             data: product
@@ -224,30 +179,6 @@ router.get('/sku/:sku', verifyToken, async (req, res, next) => {
     }
 });
 
-/**
- * @route   GET /api/v1/products/category/:categoryId
- * @desc    Get products by category
- * @access  Private
- */
-router.get('/get-categories', verifyToken, async (req, res) => {
-    try {
-        const products = await productService.getProductsByCategory(req.params.categoryId);
-        
-        res.status(HTTP_STATUS.OK).json({
-            success: true,
-            count: products.length,
-            data: products
-        });
-    } catch (error) {
-        logger.error(`GET /products/category/:categoryId error: ${error.message}`);
-        next(error);
-    }
-});
-/**
- * @route   POST /api/v1/products/categories
- * @desc    Create a single new category
- * @access  Private (Manager+)
- */
 router.post('/categories', verifyToken, requirePermission('stock.manage'), async (req, res) => {
     try {
         const { name, parent_category_id, description } = req.body;
@@ -278,11 +209,6 @@ router.post('/categories', verifyToken, requirePermission('stock.manage'), async
     }
 });
 
-/**
- * @route   POST /api/v1/products/bulk
- * @desc    Bulk create products (up to 40 rows)
- * @access  Private (Manager+)
- */
 router.post('/bulk', verifyToken, requirePermission('stock.manage'), async (req, res, next) => {
     try {
         const { products, new_categories } = req.body;
@@ -301,7 +227,6 @@ router.post('/bulk', verifyToken, requirePermission('stock.manage'), async (req,
             });
         }
 
-        // Validate each row
         for (let i = 0; i < products.length; i++) {
             const p = products[i];
             if (!p.name || String(p.name).trim().length < 2) {
@@ -330,7 +255,6 @@ router.post('/bulk', verifyToken, requirePermission('stock.manage'), async (req,
             req.user.id
         );
 
-        // Fire email in the background — don't await, don't block the response
         emailService
             .sendBulkImportSummary(result.products, req.user, result.totals)
             .catch(err => logger.error(`Bulk import email failed: ${err.message}`));
@@ -345,16 +269,12 @@ router.post('/bulk', verifyToken, requirePermission('stock.manage'), async (req,
         next(error);
     }
 });
-/**
- * @route   GET /api/v1/products/:id/movements
- * @desc    Get inventory movements
- * @access  Private (Manager+)
- */
+
 router.get('/:id/movements', verifyToken, requireRoles(['owner', 'manager']), async (req, res, next) => {
     try {
         const limit = req.query.limit ? parseInt(req.query.limit) : 50;
         const movements = await productService.getProductMovements(req.params.id, limit);
-        
+
         res.status(HTTP_STATUS.OK).json({
             success: true,
             count: movements.length,
@@ -366,15 +286,10 @@ router.get('/:id/movements', verifyToken, requireRoles(['owner', 'manager']), as
     }
 });
 
-/**
- * @route   POST /api/v1/products/:id/restock
- * @desc    Restock a product
- * @access  Private (Manager+)
- */
 router.post('/:id/restock', verifyToken, requireRoles(['owner', 'manager']), async (req, res, next) => {
     try {
         const { quantity, branch_id } = req.body;
-        
+
         if (!quantity || quantity <= 0) {
             return res.status(HTTP_STATUS.BAD_REQUEST).json({
                 success: false,
@@ -385,7 +300,7 @@ router.post('/:id/restock', verifyToken, requireRoles(['owner', 'manager']), asy
         }
 
         const branchId = branch_id || '22222222-2222-2222-2222-222222222222';
-        
+
         const newStock = await productService.updateStock(
             branchId,
             req.params.id,
@@ -394,7 +309,7 @@ router.post('/:id/restock', verifyToken, requireRoles(['owner', 'manager']), asy
             req.user.id,
             `RESTOCK-${Date.now()}`
         );
-        
+
         res.status(HTTP_STATUS.OK).json({
             success: true,
             message: 'Stock updated successfully',
@@ -411,11 +326,6 @@ router.post('/:id/restock', verifyToken, requireRoles(['owner', 'manager']), asy
     }
 });
 
-/**
- * @route   POST /api/v1/products
- * @desc    Create a new product
- * @access  Private (Manager+)
- */
 router.post('/', verifyToken, requireRoles(['owner', 'manager']), async (req, res, next) => {
     try {
         const { error, value } = productSchema.validate(req.body);
@@ -431,7 +341,6 @@ router.post('/', verifyToken, requireRoles(['owner', 'manager']), async (req, re
 
         const product = await productService.createProduct(value);
 
-        // Fire owner notification email in the background
         emailService
             .sendStockAddedNotification(product, req.user)
             .catch(err => logger.error(`Single add email failed: ${err.message}`));
@@ -443,7 +352,7 @@ router.post('/', verifyToken, requireRoles(['owner', 'manager']), async (req, re
         });
     } catch (error) {
         logger.error(`POST /products error: ${error.message}`);
-        
+
         if (error.message && error.message.includes('duplicate key value violates unique constraint')) {
             return res.status(HTTP_STATUS.CONFLICT).json({
                 success: false,
@@ -452,21 +361,15 @@ router.post('/', verifyToken, requireRoles(['owner', 'manager']), async (req, re
                 }
             });
         }
-        
+
         next(error);
     }
 });
 
-/**
- * @route   GET /api/v1/products/:id
- * @desc    Get product by ID with inventory
- * @access  Private
- * ⚠️ WILDCARD ROUTE - MUST COME LAST!
- */
 router.get('/:id', verifyToken, async (req, res, next) => {
     try {
         const product = await productService.getProductById(req.params.id);
-        
+
         if (!product) {
             return res.status(HTTP_STATUS.NOT_FOUND).json({
                 success: false,
@@ -475,7 +378,7 @@ router.get('/:id', verifyToken, async (req, res, next) => {
                 }
             });
         }
-        
+
         res.status(HTTP_STATUS.OK).json({
             success: true,
             data: product
@@ -486,11 +389,6 @@ router.get('/:id', verifyToken, async (req, res, next) => {
     }
 });
 
-/**
- * @route   PUT /api/v1/products/:id
- * @desc    Update a product
- * @access  Private (Manager+)
- */
 router.put('/:id', verifyToken, requireRoles(['owner', 'manager']), async (req, res, next) => {
     try {
         const { error, value } = productSchema.validate(req.body);
@@ -505,7 +403,7 @@ router.put('/:id', verifyToken, requireRoles(['owner', 'manager']), async (req, 
         }
 
         const product = await productService.updateProduct(req.params.id, value);
-        
+
         if (!product) {
             return res.status(HTTP_STATUS.NOT_FOUND).json({
                 success: false,
@@ -514,7 +412,7 @@ router.put('/:id', verifyToken, requireRoles(['owner', 'manager']), async (req, 
                 }
             });
         }
-        
+
         res.status(HTTP_STATUS.OK).json({
             success: true,
             message: 'Product updated successfully',
@@ -528,13 +426,13 @@ router.put('/:id', verifyToken, requireRoles(['owner', 'manager']), async (req, 
 
 /**
  * @route   DELETE /api/v1/products/:id
- * @desc    Soft delete a product
+ * @desc    Permanently delete a product
  * @access  Private (Manager+)
  */
 router.delete('/:id', verifyToken, requireRoles(['owner', 'manager']), async (req, res, next) => {
     try {
-        const product = await productService.deleteProduct(req.params.id);
-        
+        const product = await productService.hardDeleteProduct(req.params.id);
+
         if (!product) {
             return res.status(HTTP_STATUS.NOT_FOUND).json({
                 success: false,
@@ -543,10 +441,10 @@ router.delete('/:id', verifyToken, requireRoles(['owner', 'manager']), async (re
                 }
             });
         }
-        
+
         res.status(HTTP_STATUS.OK).json({
             success: true,
-            message: 'Product deleted successfully',
+            message: 'Product deleted permanently',
             data: product
         });
     } catch (error) {

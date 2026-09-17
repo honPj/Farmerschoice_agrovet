@@ -45,6 +45,17 @@ const DB = {
 };
 
 // ──────────────────────────────────────────────
+// IN-MEMORY CACHE (for slow-changing data)
+// ──────────────────────────────────────────────
+const _cache = {
+    products: null,
+    productsAt: 0,
+    categories: null,
+    categoriesAt: 0,
+    TTL: 60_000 // 60 seconds
+};
+
+// ──────────────────────────────────────────────
 // AUTH HELPERS
 // ──────────────────────────────────────────────
 function getToken()          { return localStorage.getItem('fc_token'); }
@@ -314,23 +325,74 @@ async function fetchMyPermissions() {
 }
 
 // ──────────────────────────────────────────────
-// PRODUCTS API
+// PRODUCTS API  (with caching)
 // ──────────────────────────────────────────────
-async function fetchProducts(filters = {}) {
+/**
+ * Fetch products. Results are cached for 60s unless filters are provided
+ * or `force: true` is passed.
+ */
+async function fetchProducts(filters = {}, { force = false } = {}) {
+    const hasFilters = Object.keys(filters || {}).length > 0;
+    const now = Date.now();
+
+    if (!hasFilters && !force && _cache.products && (now - _cache.productsAt) < _cache.TTL) {
+        return _cache.products;
+    }
+
     const params = new URLSearchParams(filters).toString();
     const url = `/products${params ? '?' + params : ''}`;
     const response = await apiRequest(url);
-    return response.data || [];
+    const data = response.data || [];
+
+    if (!hasFilters) {
+        _cache.products = data;
+        _cache.productsAt = now;
+    }
+    return data;
 }
 
-async function fetchCategories() {
+/**
+ * Fetch product categories. Cached for 60s unless `force: true`.
+ */
+async function fetchCategories({ force = false } = {}) {
+    const now = Date.now();
+    if (!force && _cache.categories && (now - _cache.categoriesAt) < _cache.TTL) {
+        return _cache.categories;
+    }
     try {
         const response = await apiRequest('/products/get-categories');
-        return response.data || [];
+        const data = response.data || [];
+        _cache.categories = data;
+        _cache.categoriesAt = now;
+        return data;
     } catch (err) {
         console.error('fetchCategories error:', err);
         return [];
     }
+}
+
+/**
+ * Invalidate the products cache. Call after create/update/delete/restock.
+ */
+function invalidateProductsCache() {
+    _cache.products = null;
+    _cache.productsAt = 0;
+}
+
+/**
+ * Invalidate the categories cache. Call after creating a category.
+ */
+function invalidateCategoriesCache() {
+    _cache.categories = null;
+    _cache.categoriesAt = 0;
+}
+
+/**
+ * Invalidate both caches.
+ */
+function invalidateCatalogCache() {
+    invalidateProductsCache();
+    invalidateCategoriesCache();
 }
 
 async function searchProducts(q, filters = {}) {
@@ -344,6 +406,7 @@ async function createProduct(productData) {
         method: 'POST',
         body: JSON.stringify(productData)
     });
+    invalidateProductsCache();
     return response.data;
 }
 
@@ -352,11 +415,13 @@ async function updateProduct(id, productData) {
         method: 'PUT',
         body: JSON.stringify(productData)
     });
+    invalidateProductsCache();
     return response.data;
 }
 
 async function deleteProduct(id) {
     await apiRequest(`/products/${id}`, { method: 'DELETE' });
+    invalidateProductsCache();
     return true;
 }
 
@@ -367,6 +432,7 @@ async function restockProduct(id, quantity, branchId) {
         method: 'POST',
         body: JSON.stringify(body)
     });
+    invalidateProductsCache();
     return response.data;
 }
 
@@ -388,6 +454,8 @@ async function createSale(saleData) {
         method: 'POST',
         body: JSON.stringify(saleData)
     });
+    // A sale changes stock, so products cache is stale
+    invalidateProductsCache();
     return response.data;
 }
 
@@ -447,10 +515,12 @@ async function fetchReport(type, params = {}) {
     const response = await apiRequest(url);
     return response.data;
 }
+
 async function fetchAnalyticsSummary(days = 30) {
     const response = await apiRequest(`/reports/analytics-summary?days=${days}`);
     return response.data;
 }
+
 async function exportReport(type, params = {}, format = 'excel') {
     const cleanParams = { type, format };
     Object.entries(params).forEach(([k, v]) => {
@@ -678,6 +748,11 @@ window.updateProduct = updateProduct;
 window.deleteProduct = deleteProduct;
 window.restockProduct = restockProduct;
 window.fetchLowStockProducts = fetchLowStockProducts;
+
+// Cache invalidation helpers
+window.invalidateProductsCache = invalidateProductsCache;
+window.invalidateCategoriesCache = invalidateCategoriesCache;
+window.invalidateCatalogCache = invalidateCatalogCache;
 
 // Sales API
 window.createSale = createSale;

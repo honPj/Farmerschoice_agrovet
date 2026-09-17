@@ -34,17 +34,17 @@ const saleItemSchema = Joi.object({
 export const createSaleSchema = Joi.object({
     branch_id: Joi.string()
         .uuid()
-        .optional(),
+        .optional()
+        .allow(null, ''),
     customer_name: Joi.string()
         .max(255)
         .optional()
+        .allow(null, '')
         .default('Walk-in'),
-    customer_phone: Joi.string()
-        .max(20)
-        .optional(),
     customer_email: Joi.string()
         .email()
-        .optional(),
+        .optional()
+        .allow(null, ''),
     items: Joi.array()
         .items(saleItemSchema)
         .min(1)
@@ -54,6 +54,8 @@ export const createSaleSchema = Joi.object({
         }),
     discount: Joi.number()
         .min(0)
+        .optional()
+        .allow(null)
         .default(0)
         .messages({
             'number.base': 'Discount must be a number',
@@ -61,6 +63,8 @@ export const createSaleSchema = Joi.object({
         }),
     tax: Joi.number()
         .min(0)
+        .optional()
+        .allow(null)
         .default(0)
         .messages({
             'number.base': 'Tax must be a number',
@@ -73,17 +77,20 @@ export const createSaleSchema = Joi.object({
             'string.empty': 'Payment method is required',
             'any.only': 'Payment method must be Cash, M-Pesa, Bank, or Credit'
         }),
-        payment_status: Joi.string()
+    payment_status: Joi.string()
         .valid('pending', 'partial', 'completed', 'failed', 'refunded', 'paid')
+        .optional()
+        .allow(null, '')
         .default('completed'),
     // Credit sale fields
     due_date: Joi.string()
         .isoDate()
         .optional()
-        .allow(null),
+        .allow(null, ''),
     paid_amount: Joi.number()
         .min(0)
         .optional()
+        .allow(null)
         .default(0),
     customer_phone: Joi.string()
         .max(30)
@@ -91,9 +98,11 @@ export const createSaleSchema = Joi.object({
         .allow(null, ''),
     notes: Joi.string()
         .max(500)
-        .optional(),
+        .optional()
+        .allow(null, ''),
     metadata: Joi.object()
         .optional()
+        .allow(null)
 });
 
 // Return/Refund validation

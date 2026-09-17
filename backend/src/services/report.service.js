@@ -31,6 +31,7 @@ class ReportService {
                     ),
                     sale_items (
                         id,
+                        product_id,
                         product_name,
                         quantity,
                         unit_price,
@@ -113,7 +114,7 @@ class ReportService {
             const daysOffset = (week - 1) * 7;
             const startDate = new Date(firstDayOfYear);
             startDate.setDate(firstDayOfYear.getDate() + daysOffset);
-            
+
             // Adjust to Monday
             const dayOfWeek = startDate.getDay();
             const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
@@ -142,7 +143,7 @@ class ReportService {
 
             const startDate = new Date(year, month - 1, 1);
             startDate.setHours(0, 0, 0, 0);
-            
+
             const endDate = new Date(year, month, 0);
             endDate.setHours(23, 59, 59, 999);
 
@@ -164,7 +165,7 @@ class ReportService {
 
             const startDate = new Date(year, 0, 1);
             startDate.setHours(0, 0, 0, 0);
-            
+
             const endDate = new Date(year, 11, 31);
             endDate.setHours(23, 59, 59, 999);
 
@@ -200,6 +201,7 @@ class ReportService {
                     ),
                     sale_items (
                         id,
+                        product_id,
                         product_name,
                         quantity,
                         unit_price,
@@ -622,7 +624,7 @@ class ReportService {
                 totalRevenue += sale.total || 0;
                 totalDiscount += sale.discount || 0;
                 totalTax += sale.tax || 0;
-                
+
                 const cost = sale.sale_items?.reduce((sum, item) => sum + (item.cost_price * item.quantity || 0), 0) || 0;
                 totalCost += cost;
                 totalProfit += sale.sale_items?.reduce((sum, item) => sum + (item.profit || 0), 0) || 0;
@@ -658,7 +660,8 @@ class ReportService {
             throw error;
         }
     }
-        /**
+
+    /**
      * Get stock movement report — fast-moving → slow-moving products
      */
     async getStockMovementReport(startDate, endDate, limit = 100, branchId = null) {
@@ -787,7 +790,8 @@ class ReportService {
             throw error;
         }
     }
-        /**
+
+    /**
      * Get product category report — revenue/profit per category
      */
     async getCategoryReport(startDate, endDate, branchId = null) {
@@ -1062,7 +1066,8 @@ class ReportService {
             throw error;
         }
     }
-        /**
+
+    /**
      * Get comprehensive analytics summary for a period
      * (all-in-one for the Analytics dashboard)
      */
@@ -1228,7 +1233,6 @@ class ReportService {
                 .slice(0, 10);
 
             // ─── Category breakdown ───
-            // Enrich product revenue with category (needs product lookup)
             const productIds = [...new Set(
                 currentSales.flatMap(s => (s.sale_items || []).map(it => it.product_id)).filter(Boolean)
             )];
