@@ -345,13 +345,13 @@
                         <button class="action-btn action-primary" onclick="confirmPicker()">
                             🔍 Show report
                         </button>
-                        <button class="action-btn" onclick="window.print()">
+                        <button class="action-btn" onclick="confirmAndPrint()">
                             🖨️ Print
                         </button>
-                        <button class="action-btn" onclick="doExport('excel')">
+                        <button class="action-btn" onclick="confirmAndExport('excel')">
                             📊 Excel
                         </button>
-                        <button class="action-btn" onclick="doExport('csv')">
+                        <button class="action-btn" onclick="confirmAndExport('csv')">
                             📄 CSV
                         </button>
                     </div>
@@ -943,9 +943,6 @@
         }
 
         // ─── Price Increase Sales ───
-        // A sale has a price increase when one or more of its items were sold
-        // above the product's base selling_price. The increase per item is:
-        //     (unit_price - selling_price) * quantity
         if (id === 'price-increase-sales') {
             const params = {};
             if (filters.start_date) params.start_date = filters.start_date + 'T00:00:00';
@@ -953,7 +950,6 @@
             const report = await fetchReport('custom', params);
             const allSales = report?.sales || [];
 
-            // Build a lookup: product_id → base selling_price
             let productsById = {};
             try {
                 const allProducts = await fetchProducts();
@@ -1917,8 +1913,6 @@
     }
 
     // ── Price Increase Sales ──
-    // Mirrors Discounted Sales but shows sales where unit_price > base selling_price.
-    // Each row shows the sale, the total amount increased, and the cashier who made it.
     function renderPriceIncreaseSales(container, payload) {
         destroyChart();
         const list = payload.increased || [];
@@ -1945,7 +1939,6 @@
             return;
         }
 
-        // Per-employee summary
         const byStaff = {};
         list.forEach(s => {
             const key = s.cashier_name || '—';
@@ -1996,7 +1989,6 @@
                 </table>
             </div>`;
 
-        // Sub-section: per-employee breakdown
         html += `<h4 class="sub-section-title">Breakdown by employee (${staffRows.length})</h4>`;
         html += `
             <div class="report-table-wrap">
@@ -2296,8 +2288,30 @@
     // ============================================
     // EXPORT
     // ============================================
+
+    // ── Commit picker state + run export (used by the picker's Excel/CSV buttons) ──
+    function confirmAndExport(format) {
+        pendingFilters = readPendingFiltersFromForm();
+        selectedReportId = pendingReportId;
+        currentFilters = { ...pendingFilters };
+        closeModal('reportPickerModal');
+        saveState();
+        setTimeout(() => doExport(format), 50);
+    }
+
+    function confirmAndPrint() {
+        pendingFilters = readPendingFiltersFromForm();
+        selectedReportId = pendingReportId;
+        currentFilters = { ...pendingFilters };
+        closeModal('reportPickerModal');
+        saveState();
+        setTimeout(async () => {
+            await loadCurrentReport();
+            setTimeout(() => window.print(), 200);
+        }, 50);
+    }
+
     // ── Frontend CSV/Excel export for reports the backend can't handle ──
-    // `price-increase-sales` is computed on the client, so we serialize it here.
     function buildPriceIncreaseCSV() {
         const data = lastRenderedData;
         if (!data || !Array.isArray(data.increased)) return null;
@@ -2310,7 +2324,6 @@
             return s;
         };
 
-        const rows = [];
         const meta = [];
         meta.push(['FarmersChoice Agrovet — Price Increase Sales']);
         if (data.date_range) {
@@ -2319,7 +2332,6 @@
         meta.push([`Generated: ${new Date().toLocaleString('en-KE')}`]);
         meta.push([]);
 
-        // Section 1: sale-level rows
         meta.push(['SALE-LEVEL SUMMARY']);
         meta.push(['Receipt', 'Date', 'Customer', 'Cashier', 'Payment', 'Subtotal', 'Increase', 'Total']);
         (data.increased || []).forEach(s => {
@@ -2339,7 +2351,6 @@
         const totalRev = data.increased.reduce((a, s) => a + (Number(s.total) || 0), 0);
         meta.push(['GRAND TOTAL', '', '', '', '', totalSub, totalInc, totalRev]);
 
-        // Section 2: item-level detail
         meta.push([]);
         meta.push(['ITEM-LEVEL DETAIL']);
         meta.push(['Receipt', 'Product', 'Qty', 'Base Price', 'Charged Price', 'Increase/Unit', 'Increase Total']);
@@ -2361,7 +2372,6 @@
     }
 
     function buildPriceIncreaseExcel() {
-        // Excel-compatible HTML table (works with .xls extension)
         const data = lastRenderedData;
         if (!data || !Array.isArray(data.increased)) return null;
 
@@ -2374,7 +2384,6 @@
         }
         html += `<p><strong>Generated:</strong> ${e(new Date().toLocaleString('en-KE'))}</p>`;
 
-        // Section 1
         html += `<h3>Sale-Level Summary</h3>`;
         html += `<table border="1" cellspacing="0" cellpadding="4">`;
         html += `<tr style="background:#eee;font-weight:bold">
@@ -2404,7 +2413,6 @@
                  </tr>`;
         html += `</table>`;
 
-        // Section 2
         html += `<h3>Item-Level Detail</h3>`;
         html += `<table border="1" cellspacing="0" cellpadding="4">`;
         html += `<tr style="background:#eee;font-weight:bold">
@@ -2426,7 +2434,6 @@
         });
         html += `</table>`;
 
-        // Section 3
         const byStaff = {};
         data.increased.forEach(s => {
             const k = s.cashier_name || '—';
@@ -2466,10 +2473,54 @@
         setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
 
+    /**
+     * Translate the current report filters into a date range that the
+     * backend's /exports/report endpoint understands.
+     */
+    function buildExportFilters(reportId, f) {
+        const out = {};
+
+        if (f.status) out.status = f.status;
+        if (f.payment_method && f.payment_method !== 'All') out.payment_method = f.payment_method;
+        if (f.movement && f.movement !== 'all') out.movement = f.movement;
+        if (f.role && f.role !== 'all') out.role = f.role;
+        if (f.category) out.category = f.category;
+        if (f.limit && reportId === 'stock-movement') out.limit = f.limit;
+
+        if (f.start_date && f.end_date) {
+            out.start_date = f.start_date;
+            out.end_date = f.end_date;
+        } else if (f.date) {
+            out.start_date = f.date;
+            out.end_date = f.date;
+        } else if (f.year && f.month) {
+            const y = f.year, m = f.month;
+            const first = new Date(y, m - 1, 1);
+            const last = new Date(y, m, 0);
+            out.start_date = toISO(first);
+            out.end_date = toISO(last);
+        } else if (f.year && f.week) {
+            const mon = getMondayOfWeek(f.year, f.week);
+            const sun = new Date(mon);
+            sun.setDate(mon.getDate() + 6);
+            out.start_date = toISO(mon);
+            out.end_date = toISO(sun);
+        } else if (f.year) {
+            const first = new Date(f.year, 0, 1);
+            const last = new Date(f.year, 11, 31);
+            out.start_date = toISO(first);
+            out.end_date = toISO(last);
+        }
+
+        return out;
+    }
+
     async function doExport(format) {
         if (!selectedReportId) { showToast('No report selected', 'warning'); return; }
 
-        // ── Price Increase Sales: build CSV/Excel on the client ──
+        console.log('📤 Export:', selectedReportId, '→', format, 'filters:', currentFilters);
+
+        // ── Price Increase Sales: client-side CSV/Excel ──
         if (selectedReportId === 'price-increase-sales') {
             if (!lastRenderedData) {
                 showToast('Load the report first', 'warning');
@@ -2494,10 +2545,9 @@
             return;
         }
 
-        // ── All other reports: use the backend export endpoint ──
-        const filters = { ...currentFilters };
-        if (!filters.category) delete filters.category;
-        delete filters._preset;
+        // ── All other reports: normalize filters → date range, then call backend ──
+        const filters = buildExportFilters(selectedReportId, currentFilters);
+
         try {
             showToast(`Preparing ${format.toUpperCase()}...`, 'info');
             const filename = await exportReport(selectedReportId, filters, format);

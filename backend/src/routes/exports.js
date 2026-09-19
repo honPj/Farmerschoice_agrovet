@@ -370,6 +370,7 @@ router.get('/payment-breakdown', verifyToken, requireRoles(['owner', 'manager'])
         next(error);
     }
 });
+
 /**
  * @route   GET /api/v1/exports/report
  * @desc    Generic report export — any report type as CSV or Excel
@@ -462,6 +463,52 @@ router.get('/report', verifyToken, requireRoles(['owner', 'manager']), async (re
                 break;
             }
 
+            case 'products-list': {
+                const { data, error } = await supabase
+                    .from('products')
+                    .select(`
+                        *,
+                        categories:category_id ( name ),
+                        inventory:branch_inventory ( current_stock, cost_price, selling_price )
+                    `)
+                    .eq('is_active', true)
+                    .order('name', { ascending: true });
+                if (error) throw error;
+
+                headers = [
+                    { key: 'sku', label: 'SKU' },
+                    { key: 'name', label: 'Product' },
+                    { key: 'category_name', label: 'Category' },
+                    { key: 'unit_of_measure', label: 'Unit' },
+                    { key: 'current_stock', label: 'Stock' },
+                    { key: 'cost_price', label: 'Cost Price' },
+                    { key: 'selling_price', label: 'Sale Price' },
+                    { key: 'cost_value', label: 'Cost Value' },
+                    { key: 'sale_value', label: 'Sale Value' },
+                    { key: 'margin', label: 'Margin' }
+                ];
+                rows = (data || []).map(p => {
+                    const inv = Array.isArray(p.inventory) && p.inventory.length ? p.inventory[0] : null;
+                    const stock = (p.inventory || []).reduce((s, i) => s + (i.current_stock || 0), 0);
+                    const cost = inv?.cost_price ?? p.cost_price ?? 0;
+                    const sell = inv?.selling_price ?? p.selling_price ?? 0;
+                    return {
+                        sku: p.sku || '',
+                        name: p.name,
+                        category_name: p.categories?.name || 'Uncategorized',
+                        unit_of_measure: p.unit_of_measure || 'piece',
+                        current_stock: stock,
+                        cost_price: cost,
+                        selling_price: sell,
+                        cost_value: stock * cost,
+                        sale_value: stock * sell,
+                        margin: stock * (sell - cost)
+                    };
+                });
+                filename = 'Products_List';
+                break;
+            }
+
             case 'top-products': {
                 const r = await reportService.getTopProducts(limit, startDate, endDate, req.query.branch_id);
                 headers = [
@@ -473,6 +520,28 @@ router.get('/report', verifyToken, requireRoles(['owner', 'manager']), async (re
                 ];
                 rows = r;
                 filename = 'Top_Products';
+                break;
+            }
+
+            case 'category-report': {
+                if (!startDate || !endDate) {
+                    return res.status(HTTP_STATUS.BAD_REQUEST).json({
+                        success: false,
+                        error: { message: 'start_date and end_date required' }
+                    });
+                }
+                const r = await reportService.getCategoryReport(startDate, endDate, req.query.branch_id);
+                headers = [
+                    { key: 'category_name', label: 'Category' },
+                    { key: 'products_count', label: 'Products' },
+                    { key: 'unique_products_sold', label: 'Products Sold' },
+                    { key: 'total_quantity_sold', label: 'Units Sold' },
+                    { key: 'total_revenue', label: 'Revenue' },
+                    { key: 'total_profit', label: 'Profit' },
+                    { key: 'transaction_count', label: 'Transactions' }
+                ];
+                rows = r.data;
+                filename = 'Product_Categories';
                 break;
             }
 
@@ -547,6 +616,47 @@ router.get('/report', verifyToken, requireRoles(['owner', 'manager']), async (re
                 break;
             }
 
+            case 'users-report': {
+                const { data, error } = await supabase
+                    .from('users')
+                    .select('id, full_name, username, email, phone, role, permissions, is_active, last_login')
+                    .order('role', { ascending: true })
+                    .order('full_name', { ascending: true });
+                if (error) throw error;
+                headers = [
+                    { key: 'full_name', label: 'Name' },
+                    { key: 'username', label: 'Username' },
+                    { key: 'email', label: 'Email' },
+                    { key: 'phone', label: 'Phone' },
+                    { key: 'role', label: 'Role' },
+                    { key: 'permissions_label', label: 'Permissions' },
+                    { key: 'status', label: 'Status' },
+                    { key: 'last_login', label: 'Last Login' }
+                ];
+                rows = (data || []).map(u => {
+                    const perms = Array.isArray(u.permissions) ? u.permissions : [];
+                    const permLabel = perms.includes('all')
+                        ? 'ALL'
+                        : perms.length === 0
+                            ? 'None'
+                            : `${perms.length} granted`;
+                    return {
+                        full_name: u.full_name || 'Unnamed',
+                        username: u.username ? '@' + u.username : '',
+                        email: u.email || '',
+                        phone: u.phone || '',
+                        role: (u.role || '').toUpperCase(),
+                        permissions_label: permLabel,
+                        status: u.is_active === false ? 'Deactivated' : 'Active',
+                        last_login: u.last_login
+                            ? new Date(u.last_login).toLocaleDateString('en-KE')
+                            : ''
+                    };
+                });
+                filename = 'Users_Report';
+                break;
+            }
+
             case 'payment-breakdown': {
                 if (!startDate || !endDate) {
                     return res.status(HTTP_STATUS.BAD_REQUEST).json({
@@ -599,8 +709,112 @@ router.get('/report', verifyToken, requireRoles(['owner', 'manager']), async (re
                 break;
             }
 
+            case 'price-increase-sales': {
+                if (!startDate || !endDate) {
+                    return res.status(HTTP_STATUS.BAD_REQUEST).json({
+                        success: false,
+                        error: { message: 'start_date and end_date required' }
+                    });
+                }
+                const r = await reportService.getCustomReport(startDate, endDate, req.query.branch_id);
+                const allSales = r.sales || [];
+
+                const productIds = [...new Set(
+                    allSales.flatMap(s => (s.sale_items || []).map(it => it.product_id)).filter(Boolean)
+                )];
+
+                let productsById = {};
+                if (productIds.length > 0) {
+                    const { data: prods, error: pErr } = await supabase
+                        .from('products')
+                        .select('id, name, selling_price')
+                        .in('id', productIds);
+                    if (!pErr && prods) {
+                        prods.forEach(p => {
+                            productsById[p.id] = {
+                                name: p.name,
+                                selling_price: Number(p.selling_price) || 0
+                            };
+                        });
+                    }
+                }
+
+                headers = [
+                    { key: 'receipt_number', label: 'Receipt' },
+                    { key: 'sale_date', label: 'Date' },
+                    { key: 'customer_name', label: 'Customer' },
+                    { key: 'cashier_name', label: 'Cashier' },
+                    { key: 'payment_method', label: 'Payment' },
+                    { key: 'subtotal', label: 'Subtotal' },
+                    { key: 'increase_total', label: 'Increase' },
+                    { key: 'total', label: 'Total' }
+                ];
+
+                rows = [];
+                allSales.forEach(s => {
+                    const items = s.sale_items || [];
+                    let increaseTotal = 0;
+                    items.forEach(it => {
+                        const base = productsById[it.product_id]?.selling_price;
+                        const unit = Number(it.unit_price) || 0;
+                        const qty = Number(it.quantity) || 0;
+                        if (base !== undefined && unit > base) {
+                            increaseTotal += (unit - base) * qty;
+                        }
+                    });
+                    if (increaseTotal > 0) {
+                        rows.push({
+                            receipt_number: s.receipt_number,
+                            sale_date: new Date(s.sale_date).toLocaleString('en-KE'),
+                            customer_name: s.customer_name || 'Walk-in',
+                            cashier_name: s.user?.full_name || '',
+                            payment_method: s.payment_method || '',
+                            subtotal: s.subtotal || 0,
+                            increase_total: increaseTotal,
+                            total: s.total || 0
+                        });
+                    }
+                });
+
+                filename = 'Price_Increase_Sales';
+                break;
+            }
+
+            case 'discounted-sales': {
+                if (!startDate || !endDate) {
+                    return res.status(HTTP_STATUS.BAD_REQUEST).json({
+                        success: false,
+                        error: { message: 'start_date and end_date required' }
+                    });
+                }
+                const r = await reportService.getCustomReport(startDate, endDate, req.query.branch_id);
+                headers = [
+                    { key: 'receipt_number', label: 'Receipt' },
+                    { key: 'sale_date', label: 'Date' },
+                    { key: 'customer_name', label: 'Customer' },
+                    { key: 'cashier', label: 'Cashier' },
+                    { key: 'payment_method', label: 'Payment' },
+                    { key: 'subtotal', label: 'Subtotal' },
+                    { key: 'discount', label: 'Discount' },
+                    { key: 'total', label: 'Total' }
+                ];
+                rows = (r.sales || [])
+                    .filter(s => (Number(s.discount) || 0) > 0)
+                    .map(s => ({
+                        receipt_number: s.receipt_number,
+                        sale_date: new Date(s.sale_date).toLocaleString('en-KE'),
+                        customer_name: s.customer_name || 'Walk-in',
+                        cashier: s.user?.full_name || '',
+                        payment_method: s.payment_method || '',
+                        subtotal: s.subtotal || 0,
+                        discount: s.discount || 0,
+                        total: s.total || 0
+                    }));
+                filename = 'Discounted_Sales';
+                break;
+            }
+
             case 'active-discounts': {
-                const { supabase } = await import('../config/database.js');
                 const today = new Date().toISOString().split('T')[0];
                 const { data, error } = await supabase
                     .from('discounts')
@@ -643,7 +857,6 @@ router.get('/report', verifyToken, requireRoles(['owner', 'manager']), async (re
             }
 
             case 'credit': {
-                const { supabase } = await import('../config/database.js');
                 const status = req.query.status || 'all';
                 let query = supabase
                     .from('sales')
@@ -705,4 +918,5 @@ router.get('/report', verifyToken, requireRoles(['owner', 'manager']), async (re
         next(error);
     }
 });
+
 export default router;
