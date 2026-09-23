@@ -99,6 +99,11 @@ body {
   transition: background 0.3s, color 0.3s, border-color 0.3s;
   /* Prevent iOS rubber-band overscroll on body */
   overscroll-behavior-y: none;
+  
+  /* === CRITICAL MOBILE LAYOUT FIX === */
+  display: flex;
+  flex-direction: column;
+  /* === END FIX === */
 }
 
 /* Prevent iOS zoom on input focus (needs 16px+ font on inputs) */
@@ -406,6 +411,14 @@ header {
   padding-left: max(20px, env(safe-area-inset-left));
   padding-right: max(20px, env(safe-area-inset-right));
   padding-bottom: max(32px, env(safe-area-inset-bottom));
+  
+  /* === CRITICAL MOBILE LAYOUT FIX === */
+  flex: 1 1 auto;      /* Grow to fill remaining vertical space */
+  display: flex;       /* Allow children to use flexbox */
+  flex-direction: column;
+  overflow-y: auto;    /* Make the page itself scrollable */
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  /* === END FIX === */
 }
 
 .page-header {

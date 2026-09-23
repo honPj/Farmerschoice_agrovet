@@ -8,7 +8,7 @@
 // This means during development you ALWAYS get fresh files.
 // ============================================
 
-const CACHE_NAME = 'farmerschoice-v2';   // bumped — deletes v1 on activate
+const CACHE_NAME = 'farmerschoice-v3';  // bumped — deletes v1 on activate
 const OFFLINE_URL = 'pos.html';
 
 // Only pre-cache static assets. Do NOT pre-cache HTML/JS,
