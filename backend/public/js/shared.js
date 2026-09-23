@@ -26,13 +26,22 @@ let API_BASE;
 })();
 
 // ──────────────────────────────────────────────
-// SERVICE WORKER (dev only)
+// SERVICE WORKER REGISTRATION
 // ──────────────────────────────────────────────
-if ('serviceWorker' in navigator && window.ENV?.isDevelopment?.()) {
-    navigator.serviceWorker.getRegistrations().then(regs => {
-        regs.forEach(r => r.unregister());
-        if (regs.length) console.log('🧹 Unregistered', regs.length, 'service worker(s) (dev)');
-    }).catch(() => {});
+// Registers the Service Worker so the app becomes installable.
+// Note: Service Workers only work on localhost or HTTPS.
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+            .then(registration => {
+                console.log('✅ Service Worker registered successfully:', registration.scope);
+            })
+            .catch(err => {
+                console.error('❌ Service Worker registration failed:', err);
+            });
+    });
+} else {
+    console.warn('⚠️ Service Workers are not supported in this browser.');
 }
 
 // ──────────────────────────────────────────────

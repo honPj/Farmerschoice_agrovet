@@ -14,13 +14,12 @@ const OFFLINE_URL = 'pos.html';
 // Only pre-cache static assets. Do NOT pre-cache HTML/JS,
 // otherwise you risk stale app-shell on first load.
 const STATIC_ASSETS = [
-  'css/shared.css',
-  'assets/OIP.webp',
-  'manifest.json',
+  '/css/shared.css',
+  '/images/agrovet-icon_512x512.png',  // <-- Updated to .png
+  '/manifest.json',
   'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap',
   'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js'
 ];
-
 // ────────────────────────────────────────────
 // INSTALL
 // ────────────────────────────────────────────
@@ -136,8 +135,8 @@ self.addEventListener('push', (event) => {
   let data = {
     title: 'FarmersChoice Agrovet',
     body: 'New activity!',
-    icon: 'assets/icon-192.png',
-    badge: 'assets/icon-192.png'
+    icon: 'images/agrovet-icon_192x192.png',
+    badge: 'images/agrovet-icon_512x512.png',
   };
   if (event.data) {
     try { data = event.data.json(); }
@@ -146,8 +145,8 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: data.body,
-    icon: data.icon || 'assets/icon-192.png',
-    badge: data.badge || 'assets/icon-192.png',
+    icon: data.icon || 'images/agrovet-icon_192x192.png',
+    badge: data.badge || 'images/agrovet-icon_512x512.png',
     vibrate: [200, 100, 200],
     data: {
       url: data.url || 'pos.html',
